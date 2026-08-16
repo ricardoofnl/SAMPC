@@ -457,18 +457,14 @@ done:
 }
 
 /**
- * HACKHACK: The compiler will generate code for each case we need.
- * Don't remove this, otherwise files that use certain code generations
- *  will have extern problems.  For each case you need, add dummy code
- *  here.
+ * Explicit instantiations for the combinations other translation units use.
+ * A dummy function calling them is not enough, an optimizing compiler inlines
+ * the calls and never emits an out of line definition to link against.
  */
-void __WHOA_DONT_CALL_ME_PLZ_K_lol_o_O()
-{
-	//acsprintf
-	atcprintf((cell *)NULL, 0, (const char *)NULL, NULL, NULL, NULL);
-	//accprintf
-	atcprintf((cell *)NULL, 0, (cell *)NULL, NULL, NULL, NULL);
-	//ascprintf
-	atcprintf((char *)NULL, 0, (cell *)NULL, NULL, NULL, NULL);
-}
+//acsprintf
+template size_t atcprintf<cell, char>(cell *, size_t, const char *, AMX *, cell *, int *);
+//accprintf
+template size_t atcprintf<cell, cell>(cell *, size_t, const cell *, AMX *, cell *, int *);
+//ascprintf
+template size_t atcprintf<char, cell>(char *, size_t, const cell *, AMX *, cell *, int *);
 

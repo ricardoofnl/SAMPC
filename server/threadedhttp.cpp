@@ -46,7 +46,7 @@ bool StartThread(void* pParams)
 
 	pthread_attr_init(&attr);
 	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-	return pthread_create(&thread, &attr, &thread_start, NULL) == 0;
+	return pthread_create(&thread, &attr, HTTPThread, pParams) == 0;
 #endif
 }
 

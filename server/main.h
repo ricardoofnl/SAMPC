@@ -109,11 +109,14 @@ typedef struct _SERVER_SETTINGS {
 // SHA2-256
 #include <sha2/sha256.h>
 
+// SA:MP
+// system.h first, shared.h needs WORD/DWORD and on linux windows.h isn't there
+#include "system.h"
+#include "msvccompat.h"
+
 // Shared stuffs
 #include "shared.h"
 
-// SA:MP
-#include "system.h"
 #include "console.h"
 #include "sampmap.h"
 #include "variable.h"
