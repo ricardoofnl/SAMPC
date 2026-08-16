@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
-# Assemble a release zip. Always runs on linux, even for the windows packages,
-# so the layout is produced by exactly one code path.
+# assemble a release zip, always on linux even for the windows packages so the
+# layout comes from exactly one code path
 #
 # usage: dist/package.sh <target> <version> <artifact-dir> <output-dir>
 #

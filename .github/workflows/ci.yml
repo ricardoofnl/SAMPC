@@ -35,9 +35,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y gcc-multilib g++-multilib
 
-      # the guards are explicit rather than left to whatever the distro gcc spec
-      # injects, so the smoke test below trips on memory bugs the same way
-      # everywhere
+      # guards set explicitly, not left to whatever the distro gcc spec injects
       - name: Build server
         run: make -C server -j"$(nproc)" OPT="-O2 -D_FORTIFY_SOURCE=3 -fstack-protector-strong"
 
@@ -136,10 +134,8 @@ jobs:
   client-windows:
     name: Client (windows x86)
     runs-on: windows-latest
-    # samp.dll needs the DirectX SDK June 2010 for d3dx9, plus bass.lib and
-    # detours.lib. None of those are redistributable from this repository, so
-    # this job only runs once the CLIENT_DEPS_URL repository variable points at
-    # an archive holding them. See dist/client/README.txt for the layout.
+    # needs the DirectX SDK June 2010, bass.lib and detours.lib, none of them
+    # redistributable here, see dist/client/README.txt for the CLIENT_DEPS_URL layout
     if: (inputs.targets == 'all' || inputs.targets == 'client-windows') && vars.CLIENT_DEPS_URL != ''
     steps:
       - uses: actions/checkout@v4

@@ -2,8 +2,8 @@
 //
 // SA:MP Multiplayer Modification For GTA:SA
 //
-// Shims for the MSVC only functions the server sources use, so the
-// linux build does not need every call site rewritten.
+// shims for the MSVC only functions the server sources use, so the
+// linux build does not need every call site rewritten
 //
 //----------------------------------------------------------
 
@@ -31,8 +31,7 @@
 #define _stricmp  strcasecmp
 #define _strnicmp strncasecmp
 
-// MSVC returns 0 on success and an errno_t otherwise. Callers in this tree
-// ignore the return value, but keep the convention anyway.
+// MSVC returns 0 on success, callers here ignore it but keep the convention
 
 inline int strcpy_s(char* pDest, size_t nDestSize, const char* pSrc)
 {
@@ -71,8 +70,7 @@ inline int strncpy_s(char* pDest, size_t nDestSize, const char* pSrc, size_t nCo
 
 #define strtok_s strtok_r
 
-// Array forms. MSVC deduces the destination size from the array type, which is
-// what most of the call sites in this tree rely on.
+// array forms, MSVC deduces the destination size and most call sites rely on it
 
 template <size_t N> inline int strcpy_s(char (&szDest)[N], const char* pSrc)
 {
@@ -89,7 +87,7 @@ template <size_t N> inline int strncpy_s(char (&szDest)[N], const char* pSrc, si
 	return strncpy_s(szDest, N, pSrc, nCount);
 }
 
-// sprintf_s returns the number of characters written, or -1 on error.
+// returns the number of characters written, or -1 on error
 
 inline int sprintf_s(char* pDest, size_t nDestSize, const char* pFormat, ...)
 {
