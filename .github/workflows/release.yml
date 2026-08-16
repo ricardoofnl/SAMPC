@@ -62,6 +62,12 @@ jobs:
         continue-on-error: true
         run: msbuild announce/announce.sln /p:Configuration=Release /p:Platform=x86 /m /v:minimal
 
+      # standalone tools, no client dependencies, so they ship regardless
+      - name: Build tools
+        run: |
+          msbuild rcon/rcon.vcxproj /p:Configuration=Release /p:Platform=Win32 /v:minimal
+          msbuild arctool2/arctool2.vcxproj /p:Configuration=Release /p:Platform=Win32 /v:minimal
+
       # see the client-windows job in ci.yml for why this is conditional
       - name: Check out client dependencies
         if: vars.CLIENT_DEPS_REPO != ''
@@ -94,9 +100,9 @@ jobs:
         shell: bash
         run: |
           set -eu
-          mkdir -p out-server out-client
+          mkdir -p out-server out-client out-tools
 
-          # Win32 projects land in <sln dir>/Release, found rather than assumed
+          # Win32 projects land in <project dir>/Release, found rather than assumed
           find_one() { find "$2" -name "$1" -type f -print -quit; }
 
           srv=$(find_one server.exe server)
@@ -109,6 +115,14 @@ jobs:
 
           ann=$(find_one announce.exe announce || true)
           [ -n "$ann" ] && cp "$ann" out-server/ || echo "note, announce.exe not produced"
+
+          rc=$(find_one rcon.exe rcon)
+          arc=$(find_one arctool2.exe arctool2)
+          if [ -z "$rc" ] || [ -z "$arc" ]; then
+            echo "a tool was not produced: rcon.exe='$rc' arctool2.exe='$arc'"
+            exit 1
+          fi
+          cp "$rc" "$arc" out-tools/
 
           dll=$(find_one samp.dll client || true)
           if [ -n "$dll" ]; then
@@ -126,6 +140,12 @@ jobs:
         with:
           name: build-server-windows
           path: out-server/
+          if-no-files-found: error
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: build-tools-windows
+          path: out-tools/
           if-no-files-found: error
 
       - uses: actions/upload-artifact@v4
@@ -182,6 +202,7 @@ jobs:
           mkdir -p release
           dist/package.sh server-linux   "$VERSION" artifacts/build-server-linux   release
           dist/package.sh server-windows "$VERSION" artifacts/build-server-windows release
+          dist/package.sh tools-windows  "$VERSION" artifacts/build-tools-windows  release
           if [ "${{ needs.build-windows.outputs.client_built }}" = "true" ]; then
             dist/package.sh client-windows "$VERSION" artifacts/build-client-windows release
           else
@@ -220,6 +241,7 @@ jobs:
             echo
             echo "- \`sampc-$VERSION-server-linux.zip\` 32 bit linux server, ready to run"
             echo "- \`sampc-$VERSION-server-windows.zip\` 32 bit windows server, ready to run"
+            echo "- \`sampc-$VERSION-tools-windows.zip\` \`rcon.exe\` and \`arctool2.exe\`, standalone, no dependencies"
             if [ "$CLIENT_BUILT" = "true" ]; then
               echo "- \`sampc-$VERSION-client-windows.zip\` \`samp.dll\` for GTA:SA 1.0 US or EU"
             else

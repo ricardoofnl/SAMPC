@@ -89,7 +89,7 @@ jobs:
           if-no-files-found: error
 
   server-windows:
-    name: Server (windows x86)
+    name: Server and tools (windows x86)
     if: inputs.targets == 'all' || inputs.targets == 'server-windows'
     runs-on: windows-latest
     steps:
@@ -102,12 +102,19 @@ jobs:
       - name: Build announce
         run: msbuild announce/announce.sln /p:Configuration=Release /p:Platform=x86 /m /v:minimal
 
+      # standalone tools, no client dependencies, targeted as .vcxproj so there
+      # is no solution platform name to get wrong
+      - name: Build tools
+        run: |
+          msbuild rcon/rcon.vcxproj /p:Configuration=Release /p:Platform=Win32 /v:minimal
+          msbuild arctool2/arctool2.vcxproj /p:Configuration=Release /p:Platform=Win32 /v:minimal
+
       - name: Collect
         shell: bash
         run: |
           set -eu
           mkdir -p out
-          # Win32 projects land in <sln dir>/Release, but do not guess silently
+          # Win32 projects land in <project dir>/Release, but do not guess silently
           grab() {
             local name=$1 root=$2 required=$3 hit
             hit=$(find "$root" -name "$name" -type f -print -quit)
@@ -124,6 +131,8 @@ jobs:
           }
           grab server.exe   server   required
           grab announce.exe announce optional
+          grab rcon.exe     rcon     required
+          grab arctool2.exe arctool2 required
 
       - uses: actions/upload-artifact@v4
         with:

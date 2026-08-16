@@ -165,7 +165,8 @@ int main (int argc, char** argv)
 		return 0;
 	}
 
-	sscanf(szHost, "%d.%d.%d.%d", &ipblock[0], &ipblock[1], &ipblock[2], &ipblock[3]);
+	// %hhu, ipblock is BYTE[4] and %d would write 4 bytes per field into it
+	sscanf(szHost, "%hhu.%hhu.%hhu.%hhu", &ipblock[0], &ipblock[1], &ipblock[2], &ipblock[3]);
 	wPort = (WORD)atoi(argv[2]);
 	szPassword = argv[3];
 	logprintf("Remote Console: %d.%d.%d.%d:%d...\n", ipblock[0], ipblock[1], ipblock[2], ipblock[3], wPort);

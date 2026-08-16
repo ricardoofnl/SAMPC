@@ -7,10 +7,10 @@
 
 #include <windows.h>
 #include <stdio.h>
-#include "../saco/archive/CryptoContext.h"
-#include "../saco/archive/KeyPair.h"
-#include "../saco/archive/TinyEncrypt.h"
-#include "../saco/archive/ArchiveFS.h"
+#include "../client/archive/CryptoContext.h"
+#include "../client/archive/KeyPair.h"
+#include "../client/archive/TinyEncrypt.h"
+#include "../client/archive/ArchiveFS.h"
 #include "ArchiveBuilder.h"
 
 void CreateArchive(PCHAR szFileList, PCHAR szArchive) 

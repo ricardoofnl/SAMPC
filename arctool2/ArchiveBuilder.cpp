@@ -7,12 +7,12 @@
 
 #include "ArchiveBuilder.h"
 
-#include "../saco/archive/CryptoContext.h"
-#include "../saco/archive/KeyPair.h"
-#include "../saco/archive/Signer.h"
-#include "../saco/archive/Hasher.h"
-#include "../saco/archive/TinyEncrypt.h"
-#include "../saco/archive/Obfuscator.h"
+#include "../client/archive/CryptoContext.h"
+#include "../client/archive/KeyPair.h"
+#include "../client/archive/Signer.h"
+#include "../client/archive/Hasher.h"
+#include "../client/archive/TinyEncrypt.h"
+#include "../client/archive/Obfuscator.h"
 
 #include <time.h>
 

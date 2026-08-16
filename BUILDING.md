@@ -6,7 +6,6 @@ Two targets matter: the server (`mpsvr` on linux, `server.exe` on windows) and t
 client (`samp.dll`, windows only). The server builds with nothing but a compiler.
 The client needs three files that cannot live in this repository.
 
-
 ## Server, linux
 
 32 bit only. The sync structs in `sdk/shared.h` cross the wire raw via `sizeof()`
@@ -29,7 +28,6 @@ once: it changed the wire layout away from what MSVC produces, and it gave
 `std::istringstream` a packed layout that the prebuilt libstdc++ does not share,
 which smashed the stack in `CPlugins::LoadPlugins`.
 
-
 ## Server, windows
 
 ```text
@@ -41,7 +39,6 @@ Note `x86`, not `Win32`. The solution configurations are named `Debug|x86` and
 the `.sln` fails with `MSB4126`.
 
 Output lands in `server/Release/server.exe`.
-
 
 ## Client, windows
 
@@ -74,6 +71,38 @@ msbuild client/client.sln /p:Configuration=Release /p:Platform=x86
 
 Output lands in `client/Release/samp.dll`.
 
+## Tools, windows
+
+Two standalone utilities, no dependencies beyond the Windows SDK, both static CRT:
+
+```text
+msbuild rcon/rcon.vcxproj         /p:Configuration=Release /p:Platform=Win32
+msbuild arctool2/arctool2.vcxproj /p:Configuration=Release /p:Platform=Win32
+```
+
+These are targeted as `.vcxproj` rather than through a solution, so there is no
+solution platform name to get wrong. Both replaced dead `.vcproj` files that
+MSBuild has not been able to read since VS 2010.
+
+`arctool2` builds `samp.saa`. It compiles `client/archive` with `ARCTOOL` defined,
+which unlocks the key generation and archive writing half that the client itself
+never compiles, and it links `advapi32.lib` for the CryptoAPI calls. Its sources
+used to `#include "../saco/archive/..."`, a path from the original SA-MP tree that
+does not exist here.
+
+## What cannot be built, and why
+
+| project | produces | status |
+| --- | --- | --- |
+| `exgui/` | `samp.exe`, the server browser | Delphi with VCL. No free compiler exists, nothing on a GitHub runner can build it. |
+| `exgui_lazarus/` | same, ported | Builds with `lazbuild`, but all 26 event handlers in `main.pas` are empty and only 2 of the Delphi project's 8 forms were ported. It is a UI mockup, so shipping it would hand users a window that does nothing. |
+| `launch3/` | `samp_debug.exe` | MFC. Builds on a GitHub runner, fails under msvc-wine which ships no MFC libraries. Already wired up as optional. |
+| `testbot/` | `bot.exe` | A development bot. Its `.vcproj` references `..\raknet`, a path from the original tree, and pulls in a much larger RakNet set than `sdk/raknet` provides. |
+| `quicklauncher/` | `quick_launcher.exe` | An AutoIt `.au3` script, needs Aut2Exe. |
+
+`samp.saa` is not a build target either. `archive/filelist.txt` references GTA:SA
+data files plus `scm/main.scm` and `scm/script.img`, so only someone with the game
+data can produce it, using the `arctool2.exe` from the tools zip.
 
 ## Client, cross compiling on linux with msvc-wine
 
@@ -116,7 +145,6 @@ MSBuild under wine takes roughly ten minutes for the client, so run it detached.
 libraries, so `samp_debug.exe` is skipped. Everything downstream treats it as
 optional.
 
-
 ## What a user still needs at runtime
 
 `samp.dll` alone is an update, not an install. Check what it actually imports:
@@ -140,7 +168,6 @@ A full install also needs `samp.exe`, the Delphi server browser under `exgui/`,
 and `samp.saa`, built from `archive/filelist.txt` with `arctool2` out of GTA:SA
 data files. Neither is produced by CI. See `nsis/samp.nsi` for the complete file
 list the original installer shipped.
-
 
 ## CI
 

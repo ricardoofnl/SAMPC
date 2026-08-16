@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{B9794CFA-8E89-4C06-9DE6-EC19DD75D044}</ProjectGuid>
+    <TargetName>arctool2</TargetName>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <PlatformToolset>v142</PlatformToolset>
+    <UseOfMfc>false</UseOfMfc>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <!-- ARCTOOL unlocks the key generation and archive writing side of
+           client/archive, the client only compiles the reading half -->
+      <PreprocessorDefinitions>WIN32;ARCTOOL;_CONSOLE;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <WarningLevel>Level3</WarningLevel>
+    </ClCompile>
+    <Link>
+      <SubSystem>Console</SubSystem>
+      <!-- the CryptoAPI calls in CCryptoContext, CHasher, CKeyPair and CSigner -->
+      <AdditionalDependencies>advapi32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)'=='Debug'">
+    <ClCompile>
+      <Optimization>Disabled</Optimization>
+      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
+      <PreprocessorDefinitions>_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)'=='Release'">
+    <ClCompile>
+      <Optimization>MaxSpeed</Optimization>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="arctool2.cpp" />
+    <ClCompile Include="ArchiveBuilder.cpp" />
+    <ClCompile Include="..\client\archive\ArchiveFS.cpp" />
+    <ClCompile Include="..\client\archive\CryptoContext.cpp" />
+    <ClCompile Include="..\client\archive\CryptoFns.cpp" />
+    <ClCompile Include="..\client\archive\Hasher.cpp" />
+    <ClCompile Include="..\client\archive\KeyPair.cpp" />
+    <ClCompile Include="..\client\archive\Signer.cpp" />
+    <ClCompile Include="..\client\archive\TinyEncrypt.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="ArchiveBuilder.h" />
+    <ClInclude Include="..\client\archive\ArchiveCommon.h" />
+    <ClInclude Include="..\client\archive\ArchiveFS.h" />
+    <ClInclude Include="..\client\archive\CryptoContext.h" />
+    <ClInclude Include="..\client\archive\CryptoFns.h" />
+    <ClInclude Include="..\client\archive\Hasher.h" />
+    <ClInclude Include="..\client\archive\KeyPair.h" />
+    <ClInclude Include="..\client\archive\Obfuscator.h" />
+    <ClInclude Include="..\client\archive\Signer.h" />
+    <ClInclude Include="..\client\archive\TinyEncrypt.h" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+</Project>
