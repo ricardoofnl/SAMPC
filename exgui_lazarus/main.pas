@@ -137,6 +137,9 @@ type
     procedure UpdateServerList;
     procedure UpdateSelectionUI;
     function SelectedServer: Integer;
+    function ReadGtaExePath: string;
+    procedure WriteGtaExePath(const APath: string);
+    function BrowseForGtaExe(const AStart: string): string;
     function GetGtaExePath: string;
     procedure ServerConnect(const AHost: string; APort: Word;
       const APassword: string);
@@ -325,9 +328,38 @@ begin
 
 end;
 
+// the only setting so far is which gta_sa.exe Connect launches, and without a way
+// to change it a stale registry entry keeps sending you back to the old install
 procedure TfmMain.SettingsClick(Sender: TObject);
+var
+  sCurrent, sNew, sDll: string;
 begin
+  sCurrent := ReadGtaExePath;
 
+  if sCurrent = '' then
+    sCurrent := '(not set)';
+  if MessageDlg('Game Directory',
+      'Connect currently launches:' + LineEnding + LineEnding +
+      sCurrent + LineEnding + LineEnding +
+      'Pick a different gta_sa.exe?',
+      mtConfirmation, [mbYes, mbNo], 0) <> mrYes then
+    Exit;
+
+  sNew := BrowseForGtaExe(ReadGtaExePath);
+  if sNew = '' then
+    Exit;
+
+  // samp.dll has to sit beside it, Connect injects it from there
+  sDll := ExtractFilePath(sNew) + 'samp.dll';
+  if not FileExists(sDll) then
+    if MessageDlg('samp.dll is not in that directory:' + LineEnding + sDll +
+        LineEnding + LineEnding + 'Save the path anyway?',
+        mtWarning, [mbYes, mbNo], 0) <> mrYes then
+      Exit;
+
+  WriteGtaExePath(sNew);
+  MessageDlg('Game directory set to:' + LineEnding + ExtractFileDir(sNew),
+    mtInformation, [mbOK], 0);
 end;
 
 procedure TfmMain.Splitter1CanOffset(Sender: TObject; var NewOffset: Integer;
@@ -386,13 +418,11 @@ begin
 
 end;
 
-// HKCU\Software\SAMP\gta_sa_exe is where the stock launcher keeps it, ask and
-// remember when it is missing
-function TfmMain.GetGtaExePath: string;
+// HKCU\Software\SAMP\gta_sa_exe is where the stock launcher keeps it
+function TfmMain.ReadGtaExePath: string;
 {$IFDEF WINDOWS}
 var
   Reg: TRegistry;
-  Dlg: TOpenDialog;
 {$ENDIF}
 begin
   Result := '';
@@ -409,34 +439,59 @@ begin
   finally
     Reg.Free;
   end;
+{$ENDIF}
+end;
 
-  if FileExists(Result) then
-    Exit;
-
-  Dlg := TOpenDialog.Create(Self);
-  try
-    Dlg.Title := 'Locate gta_sa.exe';
-    Dlg.Filter := 'GTA: San Andreas|gta_sa.exe|All files|*.*';
-    Dlg.Options := Dlg.Options + [ofFileMustExist];
-    if not Dlg.Execute then
-      Exit('');
-    Result := Dlg.FileName;
-  finally
-    Dlg.Free;
-  end;
-
+procedure TfmMain.WriteGtaExePath(const APath: string);
+{$IFDEF WINDOWS}
+var
+  Reg: TRegistry;
+{$ENDIF}
+begin
+{$IFDEF WINDOWS}
   Reg := TRegistry.Create;
   try
     Reg.RootKey := HKEY_CURRENT_USER;
     if Reg.OpenKey('Software\SAMP', True) then
     begin
-      Reg.WriteString('gta_sa_exe', Result);
+      Reg.WriteString('gta_sa_exe', APath);
       Reg.CloseKey;
     end;
   finally
     Reg.Free;
   end;
 {$ENDIF}
+end;
+
+function TfmMain.BrowseForGtaExe(const AStart: string): string;
+var
+  Dlg: TOpenDialog;
+begin
+  Result := '';
+  Dlg := TOpenDialog.Create(Self);
+  try
+    Dlg.Title := 'Locate gta_sa.exe';
+    Dlg.Filter := 'GTA: San Andreas|gta_sa.exe|All files|*.*';
+    Dlg.Options := Dlg.Options + [ofFileMustExist];
+    if AStart <> '' then
+      Dlg.InitialDir := ExtractFileDir(AStart);
+    if Dlg.Execute then
+      Result := Dlg.FileName;
+  finally
+    Dlg.Free;
+  end;
+end;
+
+// only prompts when the stored path is unusable, use Settings to change it
+function TfmMain.GetGtaExePath: string;
+begin
+  Result := ReadGtaExePath;
+  if FileExists(Result) then
+    Exit;
+
+  Result := BrowseForGtaExe(Result);
+  if Result <> '' then
+    WriteGtaExePath(Result);
 end;
 
 // same shape as the Delphi ServerConnect: start the game suspended, inject
