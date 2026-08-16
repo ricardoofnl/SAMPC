@@ -4,6 +4,7 @@ object fmMain: TfmMain
   Top = 222
   Width = 839
   Caption = 'San Andreas Multiplayer'
+  OnCreate = FormCreate
   ClientHeight = 580
   ClientWidth = 839
   Constraints.MinHeight = 420
@@ -745,8 +746,12 @@ object fmMain: TfmMain
         MinWidth = 30
         Width = 90
       end>
+    HideSelection = False
+    ReadOnly = True
+    RowSelect = True
     TabOrder = 6
     ViewStyle = vsReport
+    OnSelectItem = lvServersSelectItem
   end
   object Splitter1: TSplitter
     Left = 614

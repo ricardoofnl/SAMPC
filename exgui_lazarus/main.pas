@@ -6,7 +6,8 @@ interface
 
 uses
   Classes, SysUtils, Forms, Controls, Graphics, Dialogs, ComCtrls, Menus,
-  ExtCtrls, StdCtrls, ValEdit, Grids, TAGraph, Types;
+  ExtCtrls, StdCtrls, ValEdit, Grids, TAGraph, Types
+  {$IFDEF WINDOWS}, Windows, Registry{$ENDIF};
 
 type
 
@@ -126,11 +127,19 @@ type
     procedure ToggleFilterServerInfo(Sender: TObject);
     procedure ToggleStatusBar(Sender: TObject);
     procedure tsServerListsChange(Sender: TObject);
+    procedure FormCreate(Sender: TObject);
+    procedure lvServersSelectItem(Sender: TObject; Item: TListItem;
+      Selected: Boolean);
   private
     // favourites, held in memory only, nothing queries or persists them yet
     Servers: array of TServerEntry;
     function FindServer(const AAddress: string; APort: Word): Integer;
     procedure UpdateServerList;
+    procedure UpdateSelectionUI;
+    function SelectedServer: Integer;
+    function GetGtaExePath: string;
+    procedure ServerConnect(const AHost: string; APort: Word;
+      const APassword: string);
   public
 
   end;
@@ -171,6 +180,76 @@ begin
     if SameText(Servers[i].Address, AAddress) and (Servers[i].Port = APort) then
       Exit(i);
   Result := -1;
+end;
+
+function TfmMain.SelectedServer: Integer;
+begin
+  Result := lvServers.ItemIndex;
+  if (Result < 0) or (Result > High(Servers)) then
+    Result := -1;
+end;
+
+// mirrors lbServersClick in the Delphi version, everything that acts on a server
+// is dead until one is selected
+procedure TfmMain.UpdateSelectionUI;
+var
+  iSel: Integer;
+  bHas: Boolean;
+begin
+  iSel := SelectedServer;
+  bHas := iSel >= 0;
+
+  tbDeleteServer.Enabled := bHas;
+  miDeleteServer.Enabled := bHas;
+  tbConnect.Enabled := bHas;
+  miConnect.Enabled := bHas;
+  tbRefreshServer.Enabled := bHas;
+  miRefreshServer.Enabled := bHas;
+  tbCopyServerInfo.Enabled := bHas;
+  miCopyServerInfo.Enabled := bHas;
+  tbServerProperties.Enabled := bHas;
+  miServerProperties.Enabled := bHas;
+
+  lvPlayers.Items.Clear;
+  lvRules.Items.Clear;
+
+  if not bHas then
+  begin
+    edSIAddress.Text := '- - -';
+    edSIPlayers.Text := '- - -';
+    edSIPing.Text := '- - -';
+    edSIMode.Text := '- - -';
+    edSIMap.Text := '- - -';
+    gbInfo.Caption := ' Server Info ';
+    Exit;
+  end;
+
+  edSIAddress.Text := Format('%s:%d', [Servers[iSel].Address, Servers[iSel].Port]);
+  if Servers[iSel].MaxPlayers > 0 then
+    edSIPlayers.Text := Format('%d/%d', [Servers[iSel].Players, Servers[iSel].MaxPlayers])
+  else
+    edSIPlayers.Text := '- - -';
+  if Servers[iSel].Ping > 0 then
+    edSIPing.Text := IntToStr(Servers[iSel].Ping)
+  else
+    edSIPing.Text := '- - -';
+  if Servers[iSel].Mode <> '' then
+    edSIMode.Text := Servers[iSel].Mode
+  else
+    edSIMode.Text := '- - -';
+  edSIMap.Text := '- - -';
+  gbInfo.Caption := ' ' + Servers[iSel].HostName + ' ';
+end;
+
+procedure TfmMain.lvServersSelectItem(Sender: TObject; Item: TListItem;
+  Selected: Boolean);
+begin
+  UpdateSelectionUI;
+end;
+
+procedure TfmMain.FormCreate(Sender: TObject);
+begin
+  UpdateSelectionUI;
 end;
 
 procedure TfmMain.UpdateServerList;
@@ -307,9 +386,178 @@ begin
 
 end;
 
-procedure TfmMain.ConnectClick(Sender: TObject);
+// HKCU\Software\SAMP\gta_sa_exe is where the stock launcher keeps it, ask and
+// remember when it is missing
+function TfmMain.GetGtaExePath: string;
+{$IFDEF WINDOWS}
+var
+  Reg: TRegistry;
+  Dlg: TOpenDialog;
+{$ENDIF}
 begin
+  Result := '';
+{$IFDEF WINDOWS}
+  Reg := TRegistry.Create;
+  try
+    Reg.RootKey := HKEY_CURRENT_USER;
+    if Reg.OpenKeyReadOnly('Software\SAMP') then
+    begin
+      if Reg.ValueExists('gta_sa_exe') then
+        Result := Reg.ReadString('gta_sa_exe');
+      Reg.CloseKey;
+    end;
+  finally
+    Reg.Free;
+  end;
 
+  if FileExists(Result) then
+    Exit;
+
+  Dlg := TOpenDialog.Create(Self);
+  try
+    Dlg.Title := 'Locate gta_sa.exe';
+    Dlg.Filter := 'GTA: San Andreas|gta_sa.exe|All files|*.*';
+    Dlg.Options := Dlg.Options + [ofFileMustExist];
+    if not Dlg.Execute then
+      Exit('');
+    Result := Dlg.FileName;
+  finally
+    Dlg.Free;
+  end;
+
+  Reg := TRegistry.Create;
+  try
+    Reg.RootKey := HKEY_CURRENT_USER;
+    if Reg.OpenKey('Software\SAMP', True) then
+    begin
+      Reg.WriteString('gta_sa_exe', Result);
+      Reg.CloseKey;
+    end;
+  finally
+    Reg.Free;
+  end;
+{$ENDIF}
+end;
+
+// same shape as the Delphi ServerConnect: start the game suspended, inject
+// samp.dll, then let it run
+procedure TfmMain.ServerConnect(const AHost: string; APort: Word;
+  const APassword: string);
+{$IFDEF WINDOWS}
+var
+  sExe, sDir, sCmd, sDll: string;
+  StartInfo: TStartupInfo;
+  ProcInfo: TProcessInformation;
+  pRemote: Pointer;
+  hThread: THandle;
+  dwWritten: SIZE_T;
+  dwTid: DWORD;
+  pLoadLibrary: Pointer;
+{$ENDIF}
+begin
+{$IFDEF WINDOWS}
+  sExe := GetGtaExePath;
+  if not FileExists(sExe) then
+  begin
+    MessageDlg('GTA: San Andreas executable not found, aborting launch.',
+      mtError, [mbOK], 0);
+    Exit;
+  end;
+
+  sDir := ExtractFilePath(sExe);
+  sDll := sDir + 'samp.dll';
+  if not FileExists(sDll) then
+  begin
+    MessageDlg('samp.dll is not next to gta_sa.exe:' + LineEnding + sDll,
+      mtError, [mbOK], 0);
+    Exit;
+  end;
+
+  sCmd := Format('"%s" -c -n %s -h %s -p %d', [sExe, lebName.Text, AHost, APort]);
+  if APassword <> '' then
+    sCmd := sCmd + ' -z ' + APassword;
+
+  FillChar(StartInfo, SizeOf(StartInfo), 0);
+  FillChar(ProcInfo, SizeOf(ProcInfo), 0);
+  StartInfo.cb := SizeOf(StartInfo);
+
+  if not CreateProcess(nil, PChar(sCmd), nil, nil, False,
+      CREATE_NEW_PROCESS_GROUP or NORMAL_PRIORITY_CLASS or CREATE_SUSPENDED,
+      nil, PChar(sDir), StartInfo, ProcInfo) then
+  begin
+    MessageDlg('Unable to launch the game.', mtError, [mbOK], 0);
+    Exit;
+  end;
+
+  pLoadLibrary := GetProcAddress(GetModuleHandle('kernel32'), 'LoadLibraryA');
+  pRemote := VirtualAllocEx(ProcInfo.hProcess, nil, Length(sDll) + 1,
+    MEM_COMMIT, PAGE_READWRITE);
+
+  if (pRemote = nil) or (pLoadLibrary = nil) then
+  begin
+    // nothing was injected, so do not leave a plain GTA running
+    TerminateProcess(ProcInfo.hProcess, 0);
+    CloseHandle(ProcInfo.hThread);
+    CloseHandle(ProcInfo.hProcess);
+    MessageDlg('Could not prepare samp.dll injection.', mtError, [mbOK], 0);
+    Exit;
+  end;
+
+  WriteProcessMemory(ProcInfo.hProcess, pRemote, PChar(sDll),
+    Length(sDll) + 1, dwWritten);
+  hThread := CreateRemoteThread(ProcInfo.hProcess, nil, 0, pLoadLibrary,
+    pRemote, 0, dwTid);
+
+  if hThread = 0 then
+  begin
+    VirtualFreeEx(ProcInfo.hProcess, pRemote, 0, MEM_RELEASE);
+    TerminateProcess(ProcInfo.hProcess, 0);
+    CloseHandle(ProcInfo.hThread);
+    CloseHandle(ProcInfo.hProcess);
+    MessageDlg('samp.dll injection failed.', mtError, [mbOK], 0);
+    Exit;
+  end;
+
+  WaitForSingleObject(hThread, 5000);
+  CloseHandle(hThread);
+  VirtualFreeEx(ProcInfo.hProcess, pRemote, 0, MEM_RELEASE);
+  ResumeThread(ProcInfo.hThread);
+  CloseHandle(ProcInfo.hThread);
+  CloseHandle(ProcInfo.hProcess);
+{$ELSE}
+  MessageDlg('Launching the game is only supported on Windows.',
+    mtError, [mbOK], 0);
+{$ENDIF}
+end;
+
+procedure TfmMain.ConnectClick(Sender: TObject);
+var
+  iSel: Integer;
+  sNick, sPwd: string;
+begin
+  iSel := SelectedServer;
+  if iSel < 0 then
+  begin
+    MessageDlg('Select a server first.', mtInformation, [mbOK], 0);
+    Exit;
+  end;
+
+  if Trim(lebName.Text) = '' then
+  begin
+    sNick := '';
+    if not InputQuery('Who are you?', 'Enter your nickname/handle...', sNick) then
+      Exit;
+    if Trim(sNick) = '' then
+      Exit;
+    lebName.Text := Trim(sNick);
+  end;
+
+  sPwd := '';
+  if Servers[iSel].Passworded then
+    if not InputQuery('Server Password', 'This server requires a password...', sPwd) then
+      Exit;
+
+  ServerConnect(Servers[iSel].Address, Servers[iSel].Port, sPwd);
 end;
 
 procedure TfmMain.CopyServerInfoClick(Sender: TObject);
@@ -330,6 +578,7 @@ begin
   SetLength(Servers, Length(Servers) - 1);
 
   UpdateServerList;
+  UpdateSelectionUI;
 end;
 
 procedure TfmMain.edFilterModeClick(Sender: TObject);
@@ -373,6 +622,7 @@ begin
 
   UpdateServerList;
   lvServers.ItemIndex := High(Servers);
+  UpdateSelectionUI;
 end;
 
 procedure TfmMain.AboutClick(Sender: TObject);
