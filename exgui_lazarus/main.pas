@@ -10,6 +10,19 @@ uses
 
 type
 
+  // subset of the Delphi TServerInfo, only the fields lvServers shows
+  TServerEntry = record
+    Address: string;
+    Port: Word;
+    HostName: string;
+    Players: Integer;
+    MaxPlayers: Integer;
+    Ping: Integer;
+    Mode: string;
+    Language: string;
+    Passworded: Boolean;
+  end;
+
   { TfmMain }
 
   TfmMain = class(TForm)
@@ -114,7 +127,10 @@ type
     procedure ToggleStatusBar(Sender: TObject);
     procedure tsServerListsChange(Sender: TObject);
   private
-
+    // favourites, held in memory only, nothing queries or persists them yet
+    Servers: array of TServerEntry;
+    function FindServer(const AAddress: string; APort: Word): Integer;
+    procedure UpdateServerList;
   public
 
   end;
@@ -126,7 +142,63 @@ implementation
 
 {$R *.lfm}
 
+// HOST:PORT, bare host falls back to 7777 the way the Delphi version does
+procedure SplitHostPort(const AText: string; out AHost: string; out APort: Word);
+var
+  iColon: Integer;
+begin
+  AHost := Trim(AText);
+  APort := 7777;
+
+  iColon := Pos(':', AHost);
+  if iColon > 0 then
+  begin
+    APort := Word(StrToIntDef(Trim(Copy(AHost, iColon + 1, Length(AHost) - iColon)), 7777));
+    AHost := Trim(Copy(AHost, 1, iColon - 1));
+  end;
+
+  if APort = 0 then
+    APort := 7777;
+end;
+
 { TfmMain }
+
+function TfmMain.FindServer(const AAddress: string; APort: Word): Integer;
+var
+  i: Integer;
+begin
+  for i := 0 to High(Servers) do
+    if SameText(Servers[i].Address, AAddress) and (Servers[i].Port = APort) then
+      Exit(i);
+  Result := -1;
+end;
+
+procedure TfmMain.UpdateServerList;
+var
+  i: Integer;
+  Item: TListItem;
+begin
+  lvServers.BeginUpdate;
+  try
+    lvServers.Items.Clear;
+    for i := 0 to High(Servers) do
+    begin
+      Item := lvServers.Items.Add;
+      // column 0 is the 28px lock column, the rest are subitems
+      Item.Caption := '';
+      Item.SubItems.Add(Servers[i].HostName);
+      Item.SubItems.Add(Format('%d/%d', [Servers[i].Players, Servers[i].MaxPlayers]));
+      if Servers[i].Ping > 0 then
+        Item.SubItems.Add(IntToStr(Servers[i].Ping))
+      else
+        Item.SubItems.Add('');
+      Item.SubItems.Add(Servers[i].Mode);
+      Item.SubItems.Add(Servers[i].Language);
+    end;
+  finally
+    lvServers.EndUpdate;
+  end;
+end;
 
 procedure TfmMain.ImportFavoritesClick(Sender: TObject);
 begin
@@ -246,8 +318,18 @@ begin
 end;
 
 procedure TfmMain.DeleteServerClick(Sender: TObject);
+var
+  i, iSel: Integer;
 begin
+  iSel := lvServers.ItemIndex;
+  if (iSel < 0) or (iSel > High(Servers)) then
+    Exit;
 
+  for i := iSel to High(Servers) - 1 do
+    Servers[i] := Servers[i + 1];
+  SetLength(Servers, Length(Servers) - 1);
+
+  UpdateServerList;
 end;
 
 procedure TfmMain.edFilterModeClick(Sender: TObject);
@@ -256,8 +338,41 @@ begin
 end;
 
 procedure TfmMain.AddServerClick(Sender: TObject);
+var
+  sInput, sHost: string;
+  wPort: Word;
 begin
+  sInput := '';
+  if not InputQuery('Add Server', 'Enter new server HOST:PORT...', sInput) then
+    Exit;
 
+  SplitHostPort(sInput, sHost, wPort);
+  if sHost = '' then
+    Exit;
+
+  if FindServer(sHost, wPort) >= 0 then
+  begin
+    MessageDlg('This server is already on your list.', mtError, [mbOK], 0);
+    Exit;
+  end;
+
+  SetLength(Servers, Length(Servers) + 1);
+  with Servers[High(Servers)] do
+  begin
+    Address := sHost;
+    Port := wPort;
+    // nothing queries the server yet, so show what was typed
+    HostName := Format('(No info) %s:%d', [sHost, wPort]);
+    Players := 0;
+    MaxPlayers := 0;
+    Ping := 0;
+    Mode := '';
+    Language := '';
+    Passworded := False;
+  end;
+
+  UpdateServerList;
+  lvServers.ItemIndex := High(Servers);
 end;
 
 procedure TfmMain.AboutClick(Sender: TObject);
