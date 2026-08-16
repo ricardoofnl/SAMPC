@@ -174,3 +174,12 @@ is absent.
 
 The built in `GITHUB_TOKEN` cannot be used, it only reaches the repository the
 workflow runs in.
+
+`release.yml` also pulls a pinned upstream `pawncc` release so `dist/package.sh`
+can precompile `gamemodes/bare.amx` into the server zips. It installs the binary
+rather than building it, because the compiler tree does not build cleanly on a
+current host: the `pawnruns` target trips
+`assert_static(sizeof(f) <= sizeof(cell))` on x86_64, and the project's
+`cmake_minimum_required` predates what recent CMake accepts. The step is allowed
+to fail. If it does, the zips ship `bare.pwn` without the `.amx` and
+`package.sh` comments out the `gamemode0` line so the server still starts.

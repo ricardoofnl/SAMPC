@@ -151,18 +151,23 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y zip
 
-      # lets package.sh precompile gamemodes/bare.amx into the server zips
-      - name: Build the Pawn compiler
-        id: pawncc
+      # lets package.sh precompile gamemodes/bare.amx into the server zips. an
+      # upstream release rather than a source build, the tree does not compile
+      # cleanly on a modern host: pawnruns trips assert_static(sizeof(f) <=
+      # sizeof(cell)) on x86_64, and its cmake_minimum_required predates 3.5
+      - name: Install the Pawn compiler
         continue-on-error: true
+        env:
+          PAWNCC_VERSION: 3.10.10
         run: |
           set -eu
-          git clone --depth 1 https://github.com/pawn-lang/compiler.git /tmp/pawn
-          cmake -S /tmp/pawn/source/compiler -B /tmp/pawn/build -DCMAKE_BUILD_TYPE=Release
-          cmake --build /tmp/pawn/build -j"$(nproc)"
-          find /tmp/pawn/build -name 'pawncc' -type f -exec cp {} /usr/local/bin/pawncc \;
-          chmod +x /usr/local/bin/pawncc
-          pawncc -h 2>&1 | head -2 || true
+          # the upstream binary is 32 bit
+          sudo apt-get install -y libc6-i386
+          curl -fsSL -o /tmp/pawnc.tar.gz \
+            "https://github.com/pawn-lang/compiler/releases/download/v$PAWNCC_VERSION/pawnc-$PAWNCC_VERSION-linux.tar.gz"
+          sudo tar xzf /tmp/pawnc.tar.gz -C /usr/local --strip-components=1
+          sudo ldconfig
+          pawncc 2>&1 | head -2 || true
 
       - uses: actions/download-artifact@v4
         with:
