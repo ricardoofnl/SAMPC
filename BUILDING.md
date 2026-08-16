@@ -125,11 +125,16 @@ optional.
 dumpbin /dependents client/Release/samp.dll
 ```
 
-The current build wants `d3dx9_25.dll` from the DirectX end user runtime,
-`BASS.dll` from un4seen, and `MSVCP140.dll` plus `VCRUNTIME140.dll` because
-`client.vcxproj` links the dynamic CRT. Stock SA-MP linked the CRT statically and
-needed none of the last two. Switch `RuntimeLibrary` to `MultiThreaded` if you
-would rather not ship a redistributable.
+The current build wants `d3dx9_25.dll` from the DirectX end user runtime and
+`BASS.dll` from un4seen. Nothing else, because `client.vcxproj` links the CRT
+statically (`RuntimeLibrary` is `MultiThreaded`), the way stock SA-MP did. Do not
+switch it back to `MultiThreadedDLL`, that pulls in `MSVCP140.dll` and
+`VCRUNTIME140.dll` and makes a redistributable a hard requirement for a DLL that
+gets injected into `gta_sa.exe`.
+
+`server.vcxproj` sets no `RuntimeLibrary` at all, so the windows server still gets
+the MSVC default of dynamic. That one is a plain console exe, so it matters less,
+but it does mean the windows server zip assumes a redistributable is present.
 
 A full install also needs `samp.exe`, the Delphi server browser under `exgui/`,
 and `samp.saa`, built from `archive/filelist.txt` with `arctool2` out of GTA:SA

@@ -25,10 +25,9 @@ needs these, and none of them are redistributable from this repository:
                       "dumpbin /dependents samp.dll" to confirm the number, it
                       follows whichever legacy DirectX SDK the build used
   bass.dll            from un4seen, the audio stream backend
-  vcredist            Microsoft Visual C++ redistributable, matching the
-                      toolset. client.vcxproj links the dynamic CRT, so samp.dll
-                      imports MSVCP140.dll and VCRUNTIME140.dll. Stock SA-MP
-                      linked statically and needed none of this
+
+No Visual C++ redistributable is needed. samp.dll links the CRT statically, the
+way stock SA-MP did.
 
 See nsis/samp.nsi for the file list the original installer shipped.
 
