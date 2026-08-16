@@ -34,6 +34,15 @@ CChatWindow::CChatWindow(IDirect3DDevice9* pD3DDevice,
 	m_iPageSize = DISP_MESSAGES;
 	m_bShowTimeStamp = false;
 
+	m_lFontSizeY = 0;
+	m_lTimeFontSizeX = 0;
+	m_lChatWindowBottom = 0;
+	m_bRenderingToSurface = false;
+	m_bSurfaceAvailable = false;
+	m_bSurfaceUpdateRequired = false;
+	m_bLogFileCreated = false;
+	m_szChatLogFile[0] = '\0';
+
 	if(szPath && szPath[0] != '\0')
 	{
 		sprintf_s(m_szChatLogFile, "%s\\" CHAT_LOG_FILE, szPath);
@@ -119,6 +128,7 @@ void CChatWindow::RestoreDeviceObjects()
 		else
 		{
 			AddDebugMessage("ChatWindow: Can't create a render surface texture. Will use direct mode.");
+			UpdateFontSizes();
 			m_bRenderingToSurface = false;
 		}
 	}
@@ -135,6 +145,17 @@ void CChatWindow::UpdateFontSizes()
 
 	m_pFontRender->GetDXFontCE()->DrawTextA(0,"[19:58:34]",-1,&rectSize,DT_CALCRECT|DT_SINGLELINE|DT_LEFT,0xFF000000);
 	m_lTimeFontSizeX = rectSize.right - rectSize.left;
+
+	UpdateChatWindowBottom();
+}
+
+//----------------------------------------------------
+
+// keep in sync with the rect walk in DrawChatLines(), cmdwindow needs it
+// before the first frame is drawn
+void CChatWindow::UpdateChatWindowBottom()
+{
+	m_lChatWindowBottom = 10 + (m_iPageSize * (m_lFontSizeY + 1)) + (2 * m_lFontSizeY) + 2;
 }
 
 //----------------------------------------------------
@@ -253,8 +274,9 @@ void CChatWindow::LogEntryToFile(CHAR eType, PCHAR szString, PCHAR szNick, PCHAR
 
 void CChatWindow::PushBack()
 {
-	memcpy_s(&m_ChatWindowEntries[0],sizeof(m_ChatWindowEntries),
-		&m_ChatWindowEntries[1],sizeof(CHAT_WINDOW_ENTRY)*(MAX_MESSAGES-1));
+	// regions overlap, memcpy would be undefined here
+	memmove(&m_ChatWindowEntries[0],&m_ChatWindowEntries[1],
+		sizeof(CHAT_WINDOW_ENTRY)*(MAX_MESSAGES-1));
 }
 
 //----------------------------------------------------
@@ -278,6 +300,8 @@ void CChatWindow::AddToChatWindowBuffer(CHAR eType, PCHAR szString,
 		time_t ct = time(NULL);
 		if(localtime_s(&t, &ct) == 0)
 			strftime(m_ChatWindowEntries[n].szTimeStamp,11,"[%H:%M:%S]",&t);
+		else
+			m_ChatWindowEntries[n].szTimeStamp[0] = '\0'; // else the shifted entry's stamp sticks
 
 		if (szNick)
 		{
@@ -478,11 +502,14 @@ void CChatWindow::DrawChatLines()
 	int iMessageAt;
 	//char szTimeStamp[64];
 
+	if (!m_pScrollBar)
+		return;
+
 	rect.top = 10;
 	rect.left = 45;
 	rect.bottom = 110;
 	rect.right = 550;
-	
+
 	if (m_pScrollBar->GetTrackPos() < 1)
 		m_pScrollBar->SetTrackPos(1);
 
@@ -549,7 +576,7 @@ void CChatWindow::Draw()
 {
 	if (m_pScrollBar)
 	{
-		if (m_iEnabled && m_pScrollBar->GetTrackPos() != (100 - m_iPageSize) || pCmdWindow->isEnabled())
+		if (m_iEnabled && (m_pScrollBar->GetTrackPos() != (100 - m_iPageSize) || pCmdWindow->isEnabled()))
 			m_pScrollBar->SetVisible(true);
 		else
 			m_pScrollBar->SetVisible(false);
@@ -577,7 +604,7 @@ void CChatWindow::Draw()
 void CChatWindow::UpdateSurface()
 {
 	if (m_bRenderingToSurface && m_pD3DDevice && m_pRenderToSurface &&
-		m_pTexture && m_pSurface) // && m_pFontRender)
+		m_pTexture && m_pSurface && m_pScrollBar) // && m_pFontRender)
 	{
 		if (pGame->IsMenuActive())
 		{
@@ -613,7 +640,7 @@ void CChatWindow::ResetPage()
 {
 	if (m_pScrollBar)
 	{
-		m_pScrollBar->SetTrackPos(90);
+		m_pScrollBar->SetTrackPos(100 - m_iPageSize);
 	}
 }
 
@@ -665,16 +692,10 @@ void CChatWindow::PageDown()
 	if (m_iEnabled && m_pScrollBar &&
 		!pGame->IsMenuActive() && !pCmdWindow->IsCandidateActive())
 	{
-		int iCurrentPos = m_pScrollBar->GetTrackPos();
-		int iNewPos;
+		int iNewPos = m_pScrollBar->GetTrackPos() + m_iPageSize;
 
-		if (iCurrentPos == 1)
-			iNewPos = m_iPageSize;
-		else
-			iNewPos = m_iPageSize - iCurrentPos;
-	
-		if (iNewPos > 100)
-			iNewPos = 100;
+		if (iNewPos > (100 - m_iPageSize))
+			iNewPos = 100 - m_iPageSize;
 
 		m_pScrollBar->SetTrackPos(iNewPos);
 	}
@@ -687,6 +708,7 @@ void CChatWindow::SetPageSize(INT iPageSize)
 	if (iPageSize >= 10 && iPageSize <= 100)
 	{
 		m_iPageSize = iPageSize;
+		UpdateChatWindowBottom();
 		UpdateScrollBar();
 		m_bSurfaceUpdateRequired = true;
 	}

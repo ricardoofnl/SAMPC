@@ -110,6 +110,7 @@ public:
 	void ResetPage();
 	void Scroll(INT iAmount);	
 	void UpdateFontSizes();
+	void UpdateChatWindowBottom();
 	void SetPageSize(INT iPageSize);
 	void ForceHide(bool bHide);
 
