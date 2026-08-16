@@ -28,8 +28,15 @@ public:
 	CLocalPlayer * GetLocalPlayer() { return m_pLocalPlayer; };
 	BYTE FindRemotePlayerIDFromGtaPtr(PED_TYPE * pActor);
 
-	bool New(BYTE bytePlayerID, PCHAR szPlayerName);
+	bool New(BYTE bytePlayerID, PCHAR szPlayerName, bool bIsNPC = false);
 	bool Delete(BYTE bytePlayerID, BYTE byteReason);
+
+	bool IsPlayerNPC(unsigned short usPlayerID) {
+		if (usPlayerID < MAX_PLAYERS && m_pPlayers[usPlayerID]) {
+			return m_pPlayers[usPlayerID]->m_bIsNPC;
+		}
+		return false;
+	};
 
 	CRemotePlayer* GetAt(unsigned short usPlayerID) {
 		if (usPlayerID < MAX_PLAYERS) {

@@ -55,6 +55,7 @@ public:
 	int					m_iVirtualWorld;
 	int					m_iScore;
 	unsigned short		m_usPing;
+	bool				m_bIsNPC;
 
 public:
 

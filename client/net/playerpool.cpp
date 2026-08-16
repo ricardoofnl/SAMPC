@@ -45,7 +45,7 @@ CPlayerPool::~CPlayerPool()
 
 //----------------------------------------------------
 
-bool CPlayerPool::New(BYTE bytePlayerID, PCHAR szPlayerName)
+bool CPlayerPool::New(BYTE bytePlayerID, PCHAR szPlayerName, bool bIsNPC)
 {
 	m_pPlayers[bytePlayerID] = new CRemotePlayer();
 
@@ -53,6 +53,7 @@ bool CPlayerPool::New(BYTE bytePlayerID, PCHAR szPlayerName)
 	{
 		m_pPlayers[bytePlayerID]->SetID(bytePlayerID);
 		m_pPlayers[bytePlayerID]->SetName(szPlayerName);
+		m_pPlayers[bytePlayerID]->m_bIsNPC = bIsNPC;
 		m_bPlayerSlotState[bytePlayerID] = true;
 		//if(pChatWindow) 
 			//pChatWindow->AddInfoMessage("*** %s joined the server.",szPlayerName);
@@ -202,7 +203,13 @@ int CPlayerPool::GetCount(bool bIncludeNPCs)
 	}
 	else
 	{
-		// TODO: Counting for NPCs?
+		for (i = 0; i < MAX_PLAYERS; i++)
+		{
+			if (m_bPlayerSlotState[i] == TRUE && !IsPlayerNPC(i))
+			{
+				iCount++;
+			}
+		}
 	}
 	return iCount;
 }

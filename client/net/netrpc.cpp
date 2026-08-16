@@ -28,18 +28,21 @@ void ServerJoin(RPCParameters *rpcParams)
 	BYTE bytePlayerID;
 	BYTE byteNameLen=0;
 	int iPlayerScore;
+	bool bIsNPC = false;
 
 	RakNet::BitStream bsData(rpcParams);
 	CPlayerPool *pPlayerPool = pNetGame->GetPlayerPool();
-	
+
 	bsData.Read(bytePlayerID);
 	bsData.Read(byteNameLen);
+	if (byteNameLen > MAX_PLAYER_NAME) return;
 	bsData.Read(szPlayerName,byteNameLen);
 	szPlayerName[byteNameLen] = '\0';
 	bsData.Read(iPlayerScore);
+	bsData.Read(bIsNPC);
 
 	// Add this client to the player pool.
-	pPlayerPool->New(bytePlayerID, szPlayerName);
+	pPlayerPool->New(bytePlayerID, szPlayerName, bIsNPC);
 	pPlayerPool->UpdateScore(bytePlayerID, iPlayerScore);
 
 	/*

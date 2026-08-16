@@ -40,6 +40,7 @@ CRemotePlayer::CRemotePlayer()
 	m_dwStreamUpdate = 0;
 	m_iScore = 0;
 	m_usPing = 0;
+	m_bIsNPC = false;
 	m_szName[0] = '\0';
 }
 

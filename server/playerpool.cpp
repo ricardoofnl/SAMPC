@@ -66,6 +66,7 @@ bool CPlayerPool::New(BYTE bytePlayerID, PCHAR szPlayerName, char* szSerial, cha
 		bsSend.Write((unsigned char)len);
 		bsSend.Write(szPlayerName, len);
 		bsSend.Write(m_pPlayers[bytePlayerID]->m_iScore);
+		bsSend.Write(bIsNPC);
 
 		pNetGame->GetRakServer()->RPC(RPC_ServerJoin ,&bsSend,HIGH_PRIORITY,RELIABLE,0,
 			pNetGame->GetRakServer()->GetPlayerIDFromIndex(bytePlayerID),true,false);
@@ -233,6 +234,7 @@ void CPlayerPool::InitPlayersForPlayer(BYTE bytePlayerID)
 			bsExistingClient.Write(ucNameLen);
 			bsExistingClient.Write(m_pPlayers[lp]->GetName(), ucNameLen);
 			bsExistingClient.Write(m_pPlayers[lp]->m_iScore);
+			bsExistingClient.Write(m_pPlayers[lp]->m_bIsNPC);
 
 			pNetGame->GetRakServer()->RPC(RPC_ServerJoin,&bsExistingClient,HIGH_PRIORITY,RELIABLE,0,Player,false,false);
 			bsExistingClient.Reset();

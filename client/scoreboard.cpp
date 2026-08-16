@@ -1,4 +1,4 @@
-﻿//
+//
 // Version: $Id: scoreboard.cpp,v 1.15 2006/04/18 11:58:57 kyeman Exp $
 //
 
@@ -114,7 +114,7 @@ void CScoreBoard::ProcessClickEvent()
 typedef struct _PLAYER_SCORE_INFO
 {
 	DWORD dwId;
-	char  szName[MAX_PLAYER_NAME];
+	char  szName[MAX_PLAYER_NAME+1]; // a name of exactly MAX_PLAYER_NAME still needs the terminator
 	int   iScore;
 	DWORD dwPing;
 	DWORD dwColor;
@@ -141,10 +141,12 @@ void CScoreBoard::UpdateList()
 
 	CPlayerPool* pPlayerPool = pNetGame->GetPlayerPool();
 	CLocalPlayer* pLocalPlayer = pPlayerPool->GetLocalPlayer();
-	int playercount = pPlayerPool->GetCount() + 1;
+	int playercount = pPlayerPool->GetCount(false) + 1;
 
 	PLAYER_SCORE_INFO* Players;
 	Players = (PLAYER_SCORE_INFO*)calloc(playercount, sizeof(PLAYER_SCORE_INFO));
+	if (!Players)
+		return;
 
 	strcpy_s(Players[0].szName, pLocalPlayer->GetName());
 	Players[0].dwColor = pLocalPlayer->GetPlayerColorAsARGB();
@@ -157,8 +159,8 @@ void CScoreBoard::UpdateList()
 	for (x=0; x<MAX_PLAYERS; x++)
 	{
 		if (pPlayerPool->GetSlotState(x) == TRUE &&
-			x != pPlayerPool->GetLocalPlayerID()) // &&
-			//!m_pPlayerPool->IsPlayerNPC(x))
+			x != pPlayerPool->GetLocalPlayerID() &&
+			!pPlayerPool->IsPlayerNPC(x))
 		{
 			CRemotePlayer* pRemotePlayer = pPlayerPool->GetAt(x);
 
@@ -172,15 +174,33 @@ void CScoreBoard::UpdateList()
 		}
 	}
 
+	// bubble sorts, same shape and direction as SA-MP's
 	if (m_dwSortType == 1 && (playercount - 1) > 0)
 	{
-		// TODO?
+		// by name, ascending
+		for (int iPass = playercount - 1; iPass > 0; iPass--)
+		{
+			for (int iAt = 0; iAt < iPass; iAt++)
+			{
+				if (strcmp(Players[iAt+1].szName, Players[iAt].szName) < 0)
+					SwapPlayerInfo(&Players[iAt], &Players[iAt+1]);
+			}
+		}
 	}
 	else if (m_dwSortType == 2 && (playercount - 1) > 0)
 	{
-		// TODO?
+		// by score, descending
+		for (int iPass = playercount - 1; iPass > 0; iPass--)
+		{
+			for (int iAt = 0; iAt < iPass; iAt++)
+			{
+				if (Players[iAt+1].iScore > Players[iAt].iScore)
+					SwapPlayerInfo(&Players[iAt], &Players[iAt+1]);
+			}
+		}
 	}
-	
+
+
 	char szBuffer[11]; //[260];
 	for (x = 0; x < playercount; x++)
 	{
@@ -252,8 +272,7 @@ void CScoreBoard::Draw()
 	int playercount = 0;
 	if (pNetGame)
 	{
-		// TODO: (in case of ignoring connected NPCs)
-		playercount = pNetGame->GetPlayerPool()->GetCount(/*false*/) + 1;
+		playercount = pNetGame->GetPlayerPool()->GetCount(false) + 1;
 		if (playercount != m_iLastPlayerCount)
 		{
 			m_iLastPlayerCount = playercount;
@@ -275,12 +294,6 @@ void CScoreBoard::Draw()
 		m_pDialog->OnRender(10.0f);
 	}
 
-	/*int playercount = 0;
-	if (pNetGame && pNetGame->GetPlayerPool())
-	{
-		// TODO: (in case of ignoring connected NPCs)
-		playercount = pNetGame->GetPlayerPool()->GetCount(/ *false* /) + 1;
-	}*/
 
 	sprintf_s(szPlayers, "Players: %d", playercount);
 
