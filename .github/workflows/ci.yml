@@ -1,0 +1,138 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  server-linux:
+    name: Server (linux x86)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # the network structs and the plugin ABI are 32 bit, see server/Makefile
+      - name: Install 32 bit toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-multilib g++-multilib
+
+      - name: Build server
+        run: make -C server -j"$(nproc)"
+
+      - name: Build announce
+        run: make -C announce -j"$(nproc)"
+
+      - name: Smoke test
+        run: |
+          set -eu
+          work=$(mktemp -d)
+          cp server/mpsvr "$work/"
+          cd "$work"
+          mkdir -p gamemodes filterscripts scriptfiles
+          cat > server.cfg <<'EOF'
+          lanmode 1
+          port 17777
+          bind 127.0.0.1
+          announce 0
+          query 0
+          rcon_password citest
+          EOF
+          timeout 15 ./mpsvr >/dev/null 2>&1 || true
+          echo '--- server_log.txt ---'
+          cat server_log.txt
+          # with no gamemode0 the server has to start, read the config and then
+          # bail out with this exact complaint
+          grep -q 'It needs a gamemode0 line' server_log.txt
+          grep -q 'SA-MP Dedicated Server' server_log.txt
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: server-linux
+          path: |
+            server/mpsvr
+            announce/announce
+          if-no-files-found: error
+
+  server-windows:
+    name: Server (windows x86)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: microsoft/setup-msbuild@v2
+
+      - name: Build server
+        run: msbuild server/server.sln /p:Configuration=Release /p:Platform=Win32 /m /v:minimal
+
+      - name: Build announce
+        run: msbuild announce/announce.sln /p:Configuration=Release /p:Platform=Win32 /m /v:minimal
+
+      - name: Collect
+        shell: bash
+        run: |
+          mkdir -p out
+          cp server/Release/server.exe out/
+          cp announce/Release/announce.exe out/ || echo "announce.exe not produced"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: server-windows
+          path: out/
+          if-no-files-found: error
+
+  client-windows:
+    name: Client (windows x86)
+    runs-on: windows-latest
+    # samp.dll needs the DirectX SDK June 2010 for d3dx9, plus bass.lib and
+    # detours.lib. None of those are redistributable from this repository, so
+    # this job only runs once the CLIENT_DEPS_URL repository variable points at
+    # an archive holding them. See dist/client/README.txt for the layout.
+    if: vars.CLIENT_DEPS_URL != ''
+    steps:
+      - uses: actions/checkout@v4
+      - uses: microsoft/setup-msbuild@v2
+
+      - name: Fetch client dependencies
+        shell: bash
+        env:
+          CLIENT_DEPS_URL: ${{ vars.CLIENT_DEPS_URL }}
+        run: |
+          set -eu
+          curl -fsSL "$CLIENT_DEPS_URL" -o deps.zip
+          mkdir -p deps
+          unzip -q deps.zip -d deps
+          # the vcxproj expects these two exact paths
+          cp deps/lib/x86/bass.lib    sdk/bass/bass.lib
+          cp deps/lib/x86/detours.lib sdk/detours/detours.lib
+          # $(DXSDK_DIR) is used unseparated as $(DXSDK_DIR)Include, so it has
+          # to keep the trailing backslash
+          echo "DXSDK_DIR=$(pwd -W)/deps/" >> "$GITHUB_ENV"
+
+      - name: Build client
+        run: msbuild client/client.sln /p:Configuration=Release /p:Platform=Win32 /m /v:minimal
+
+      - name: Build debug launcher
+        continue-on-error: true
+        run: msbuild launch3/launch3.sln /p:Configuration=Release /p:Platform=Win32 /m /v:minimal
+
+      - name: Collect
+        shell: bash
+        run: |
+          mkdir -p out
+          cp client/Release/samp.dll out/
+          cp launch3/Release/samp_debug.exe out/ || echo "samp_debug.exe not produced"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: client-windows
+          path: out/
+          if-no-files-found: error

@@ -38,11 +38,15 @@
 Debug/
 Release/
 
-# Linux server build output
+# Linux build output
 server/mpsvr
 server/mpsvrd
 server/obj/
 server/obj-debug/
+announce/announce
+
+# Release staging
+release/
 
 # That stupid settings.ini from Pawno
 pawno/settings.ini

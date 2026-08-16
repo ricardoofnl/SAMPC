@@ -1,0 +1,230 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version for this release, e.g. 0.3.9-A5. The tag becomes v<version>.'
+        required: true
+        type: string
+      prerelease:
+        description: 'Publish as a prerelease'
+        type: boolean
+        default: true
+      draft:
+        description: 'Publish as a draft so you can review before it goes live'
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  build-linux:
+    name: Server (linux x86)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install 32 bit toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-multilib g++-multilib
+
+      - run: make -C server -j"$(nproc)"
+      - run: make -C announce -j"$(nproc)"
+
+      - name: Collect
+        run: |
+          mkdir -p out
+          cp server/mpsvr out/
+          cp announce/announce out/
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: build-server-linux
+          path: out/
+          if-no-files-found: error
+
+  build-windows:
+    name: Server and client (windows x86)
+    runs-on: windows-latest
+    outputs:
+      client_built: ${{ steps.collect.outputs.client_built }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: microsoft/setup-msbuild@v2
+
+      - name: Build server
+        run: msbuild server/server.sln /p:Configuration=Release /p:Platform=Win32 /m /v:minimal
+
+      - name: Build announce
+        continue-on-error: true
+        run: msbuild announce/announce.sln /p:Configuration=Release /p:Platform=Win32 /m /v:minimal
+
+      # see the client-windows job in ci.yml for why this is conditional
+      - name: Fetch client dependencies
+        if: vars.CLIENT_DEPS_URL != ''
+        shell: bash
+        env:
+          CLIENT_DEPS_URL: ${{ vars.CLIENT_DEPS_URL }}
+        run: |
+          set -eu
+          curl -fsSL "$CLIENT_DEPS_URL" -o deps.zip
+          mkdir -p deps
+          unzip -q deps.zip -d deps
+          cp deps/lib/x86/bass.lib    sdk/bass/bass.lib
+          cp deps/lib/x86/detours.lib sdk/detours/detours.lib
+          echo "DXSDK_DIR=$(pwd -W)/deps/" >> "$GITHUB_ENV"
+
+      - name: Build client
+        if: vars.CLIENT_DEPS_URL != ''
+        run: msbuild client/client.sln /p:Configuration=Release /p:Platform=Win32 /m /v:minimal
+
+      - name: Build debug launcher
+        if: vars.CLIENT_DEPS_URL != ''
+        continue-on-error: true
+        run: msbuild launch3/launch3.sln /p:Configuration=Release /p:Platform=Win32 /m /v:minimal
+
+      - name: Collect
+        id: collect
+        shell: bash
+        run: |
+          set -eu
+          mkdir -p out-server out-client
+          cp server/Release/server.exe out-server/
+          cp announce/Release/announce.exe out-server/ 2>/dev/null || true
+
+          if [ -f client/Release/samp.dll ]; then
+            cp client/Release/samp.dll out-client/
+            cp launch3/Release/samp_debug.exe out-client/ 2>/dev/null || true
+            echo "client_built=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "client_built=false" >> "$GITHUB_OUTPUT"
+            # keep the artifact upload happy
+            echo "client was not built, see the release notes" > out-client/NOT_BUILT.txt
+          fi
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: build-server-windows
+          path: out-server/
+          if-no-files-found: error
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: build-client-windows
+          path: out-client/
+          if-no-files-found: error
+
+  release:
+    name: Package and publish
+    runs-on: ubuntu-latest
+    needs: [ build-linux, build-windows ]
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # full history so the changelog can diff against the previous tag
+          fetch-depth: 0
+
+      - name: Install packaging tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y zip
+
+      # lets package.sh precompile gamemodes/bare.amx into the server zips
+      - name: Build the Pawn compiler
+        id: pawncc
+        continue-on-error: true
+        run: |
+          set -eu
+          git clone --depth 1 https://github.com/pawn-lang/compiler.git /tmp/pawn
+          cmake -S /tmp/pawn/source/compiler -B /tmp/pawn/build -DCMAKE_BUILD_TYPE=Release
+          cmake --build /tmp/pawn/build -j"$(nproc)"
+          find /tmp/pawn/build -name 'pawncc' -type f -exec cp {} /usr/local/bin/pawncc \;
+          chmod +x /usr/local/bin/pawncc
+          pawncc -h 2>&1 | head -2 || true
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Build the zips
+        id: package
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          set -eu
+          mkdir -p release
+          dist/package.sh server-linux   "$VERSION" artifacts/build-server-linux   release
+          dist/package.sh server-windows "$VERSION" artifacts/build-server-windows release
+          if [ "${{ needs.build-windows.outputs.client_built }}" = "true" ]; then
+            dist/package.sh client-windows "$VERSION" artifacts/build-client-windows release
+          else
+            echo "skipping the client zip, samp.dll was not built"
+          fi
+          ls -la release
+
+      - name: Write the release notes
+        env:
+          VERSION: ${{ inputs.version }}
+          CLIENT_BUILT: ${{ needs.build-windows.outputs.client_built }}
+        run: |
+          set -eu
+          prev=$(git tag --list 'v*' --sort=-v:refname | head -n1 || true)
+
+          {
+            echo "SAMPC \`$VERSION\`, built from \`$(git rev-parse --short HEAD)\`."
+            echo
+            echo "\`SAMP_VERSION\` in \`sdk/shared.h\` is \`$(grep -oP '(?<=#define SAMP_VERSION ")[^"]+' sdk/shared.h)\`, \`NETGAME_VERSION\` is \`$(grep -oP '(?<=#define NETGAME_VERSION )\d+' sdk/shared.h)\`."
+            echo
+
+            echo "## Changes"
+            echo
+            if [ -n "$prev" ]; then
+              echo "Since \`$prev\`:"
+              echo
+              git log --no-merges --pretty='- %s (`%h`)' "$prev..HEAD"
+            else
+              echo "First tagged release, full history:"
+              echo
+              git log --no-merges --pretty='- %s (`%h`)'
+            fi
+            echo
+
+            echo "## Downloads"
+            echo
+            echo "- \`sampc-$VERSION-server-linux.zip\` 32 bit linux server, ready to run"
+            echo "- \`sampc-$VERSION-server-windows.zip\` 32 bit windows server, ready to run"
+            if [ "$CLIENT_BUILT" = "true" ]; then
+              echo "- \`sampc-$VERSION-client-windows.zip\` \`samp.dll\` for GTA:SA 1.0 US or EU"
+            else
+              echo "- no client zip in this release. \`samp.dll\` needs the DirectX SDK June 2010 plus \`bass.lib\` and \`detours.lib\`, which cannot be redistributed here. Set the \`CLIENT_DEPS_URL\` repository variable to enable the client build."
+            fi
+            echo
+
+            echo "Client and server from the same release have to be used together, the"
+            echo "protocol is not compatible with stock SA-MP."
+          } > notes.md
+
+          echo '--- notes.md ---'
+          cat notes.md
+
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ inputs.version }}
+        run: |
+          set -eu
+          args=""
+          [ "${{ inputs.prerelease }}" = "true" ] && args="$args --prerelease"
+          [ "${{ inputs.draft }}" = "true" ] && args="$args --draft"
+
+          gh release create "v$VERSION" \
+            --target "$GITHUB_SHA" \
+            --title "SAMPC $VERSION" \
+            --notes-file notes.md \
+            $args \
+            release/*.zip
