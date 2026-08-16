@@ -21,8 +21,14 @@ needs these, and none of them are redistributable from this repository:
                       exgui/ that does not build in CI
   samp.saa            the game asset archive, built from archive/filelist.txt
                       with arctool2 and requiring GTA:SA data files
-  d3dx9_25.dll        from the DirectX June 2010 end user runtime
+  d3dx9_25.dll        from the DirectX end user runtime. Run
+                      "dumpbin /dependents samp.dll" to confirm the number, it
+                      follows whichever legacy DirectX SDK the build used
   bass.dll            from un4seen, the audio stream backend
+  vcredist            Microsoft Visual C++ redistributable, matching the
+                      toolset. client.vcxproj links the dynamic CRT, so samp.dll
+                      imports MSVCP140.dll and VCRUNTIME140.dll. Stock SA-MP
+                      linked statically and needed none of this
 
 See nsis/samp.nsi for the file list the original installer shipped.
 
@@ -34,24 +40,30 @@ Toolchain: Visual Studio 2019 or newer, platform toolset v142, Release|Win32.
 
 Three dependencies are not in the repository:
 
-  DirectX SDK June 2010   for d3dx9.h, d3dx9core.h, DxErr.h and d3dx9.lib.
-                          D3DX was removed from the Windows SDK, so the legacy
-                          SDK is the only source. client.vcxproj reads it from
-                          $(DXSDK_DIR), used unseparated as $(DXSDK_DIR)Include
-                          and $(DXSDK_DIR)Lib\x86, so the variable has to keep
-                          its trailing backslash.
+  a legacy DirectX SDK   for the d3dx9 headers and d3dx9.lib. D3DX was removed
+                         from the Windows SDK, so a legacy SDK is the only
+                         source. Anything from the 2006 era through June 2010
+                         works, the d3dx9_XX.dll a user needs at runtime just
+                         follows whichever one you pick. client.vcxproj reads it
+                         from $(DXSDK_DIR), used unseparated as
+                         $(DXSDK_DIR)Include and $(DXSDK_DIR)Lib\x86, so the
+                         variable has to keep its trailing backslash.
 
-  bass.lib                from un4seen, dropped at sdk/bass/bass.lib.
+  bass.lib               from un4seen, dropped at sdk/bass/bass.lib.
 
-  detours.lib             Microsoft Detours, dropped at sdk/detours/detours.lib.
-                          detours.h has a #pragma comment(lib, "detours").
+  detours.lib            Microsoft Detours, dropped at sdk/detours/detours.lib.
+                         detours.h has a #pragma comment(lib, "detours").
 
 Both .lib paths are already listed in client.vcxproj, so the files just have to
 exist. Note that *.lib is gitignored, which is why they were never committed.
 
-If the link fails on DXTrace or DXGetErrorString, add dxerr.lib to the client
-project's linker inputs. DXUT calls those from DXUT.cpp, DXUTgui.cpp and
-DXUTmisc.cpp, and the committed project does not list the library.
+No dxerr library is needed even though DXUT calls DXTrace. sdk/dxut/dxstdafx.h
+redirects it to DXTraceWrapper, implemented in sdk/dxut/DXUTmisc.cpp.
+
+Only d3dx9.lib has to come from the legacy SDK. d3d9.lib and dxguid.lib, the
+other two the project links, ship with the modern Windows SDK.
+
+See BUILDING.md for a working recipe, including cross compiling on linux.
 
 
 Building samp.dll in CI
@@ -61,8 +73,11 @@ Building samp.dll in CI
 CLIENT_DEPS_URL repository variable is set. Point it at a zip laid out like
 this and the client build and the client release zip both start working:
 
-  include/       d3dx9.h, d3dx9core.h, DxErr.h and friends
-  lib/x86/       d3dx9.lib, dxerr.lib, bass.lib, detours.lib
+  include/       the d3dx9 headers, plus d3dx9math.inl and dxerr9.h
+  lib/x86/       d3dx9.lib, bass.lib, detours.lib
+
+If your SDK is old enough to ship dxerr9.h rather than DxErr.h, add a one line
+DxErr.h next to it that includes dxerr9.h. dxstdafx.h asks for the newer name.
 
 Set it under Settings, Secrets and variables, Actions, Variables. Use a URL that
 the runner can fetch without credentials, or switch the workflow step to a
