@@ -787,7 +787,7 @@ static cell AMX_NATIVE_CALL n_flength(AMX *amx, cell *params)
 static cell AMX_NATIVE_CALL n_fcopy(AMX *amx, const cell *params)
 {
   int c;
-  TCHAR *name,oldname[_MAX_PATH],newname[_MAX_PATH];
+  TCHAR *name,oldname[AMX_MAX_PATH],newname[AMX_MAX_PATH];
   FILE *fr,* fw;
 
   UNUSED_PARAM(amx);

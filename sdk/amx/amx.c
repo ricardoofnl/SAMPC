@@ -1654,7 +1654,9 @@ int AMXAPI amx_PushString(AMX *amx, cell *amx_addr, cell **phys_addr, const char
      * fast "indirect threaded" interpreter.
      */
 
-#define NEXT(cip)       goto **cip++
+/* the relocated bytecode stores label addresses in cells, so the cell has to
+ * be cast back to a pointer before gcc will accept the computed goto */
+#define NEXT(cip)       goto *(void *)(intptr_t)(*(cip)++)
 
 int AMXAPI amx_Exec(AMX *amx, cell *retval, int index)
 {

@@ -54,10 +54,10 @@ static unsigned long gettimestamp(void)
     value=timeGetTime();        /* this value is already in milliseconds */
   #else
     value=(cell)clock();
-    #if CLOCKS_PER_SEC!=1000
-      /* convert to milliseconds */
+    /* runtime check, glibc expands CLOCKS_PER_SEC with a cast so the
+     * preprocessor cannot compare it */
+    if (CLOCKS_PER_SEC!=1000)
       value=(cell)((1000L * (value+CLOCKS_PER_SEC/2)) / CLOCKS_PER_SEC);
-    #endif
   #endif
   return value;
 }

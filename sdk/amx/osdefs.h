@@ -91,11 +91,16 @@
 //  #endif
 //#endif
 
-#ifndef _MAX_PATH
-    #include <stdlib.h>
+#include <stdlib.h>
+
+#if defined _MAX_PATH
     #define AMX_MAX_PATH _MAX_PATH
+#elif defined PATH_MAX
+    #define AMX_MAX_PATH PATH_MAX
+#elif defined _POSIX_PATH_MAX
+    #define AMX_MAX_PATH _POSIX_PATH_MAX
 #else
-    #define AMX_MAX_PATH _MAX_PATH
+    #define AMX_MAX_PATH 1024
 #endif
 
 #endif  /* _OSDEFS_H */
