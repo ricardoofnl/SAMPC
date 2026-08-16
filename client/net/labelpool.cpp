@@ -88,7 +88,7 @@ void CLabelPool::Draw()
 	MATRIX4X4 mat;
 	bool bShadowed;
 
-	if (!pNetGame && !pLabel && !pGame->FindPlayerPed())
+	if (!pNetGame || !pLabel || !pGame->FindPlayerPed())
 		return;
 
 	pPlayerPool = pNetGame->GetPlayerPool();
