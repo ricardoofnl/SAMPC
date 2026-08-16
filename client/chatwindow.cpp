@@ -649,7 +649,8 @@ void CChatWindow::ResetPage()
 {
 	if (m_pScrollBar)
 	{
-		m_pScrollBar->SetTrackPos(100 - m_iPageSize);
+		// Cap() turns this into 100 - m_iPageSize for any page size above 10
+		m_pScrollBar->SetTrackPos(90);
 	}
 }
 
@@ -701,10 +702,16 @@ void CChatWindow::PageDown()
 	if (m_iEnabled && m_pScrollBar &&
 		!pGame->IsMenuActive() && !pCmdWindow->IsCandidateActive())
 	{
-		int iNewPos = m_pScrollBar->GetTrackPos() + m_iPageSize;
+		int iCurrentPos = m_pScrollBar->GetTrackPos();
+		int iNewPos;
 
-		if (iNewPos > (100 - m_iPageSize))
-			iNewPos = 100 - m_iPageSize;
+		if (iCurrentPos == 1)
+			iNewPos = m_iPageSize;
+		else
+			iNewPos = m_iPageSize + iCurrentPos;
+
+		if (iNewPos > 100)
+			iNewPos = 100;
 
 		m_pScrollBar->SetTrackPos(iNewPos);
 	}
