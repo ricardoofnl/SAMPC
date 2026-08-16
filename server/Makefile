@@ -6,7 +6,15 @@
 # on Debian/Ubuntu:
 #   apt install gcc-multilib g++-multilib
 #
-# -fpack-struct=1 matches the #pragma pack the shared headers rely on.
+# No -fpack-struct here, on purpose. The old Makefile passed -fpack-struct=1 and
+# that is wrong twice over. The sync structs in sdk/shared.h go over the wire raw
+# via sizeof(), and MSVC compiles them at its default alignment for both the
+# windows server and the client, so a packed linux server cannot talk to either
+# (AIM_SYNC_DATA is 36 bytes under MSVC and 31 when packed). It also breaks
+# std::string and std::istringstream, which get a packed layout here while the
+# prebuilt libstdc++ uses the normal one, and that smashes the stack the moment
+# one is constructed. See CPlugins::LoadPlugins.
+#
 # -fpermissive keeps the vendored RakNet and Pawn AMX sources buildable on
 # modern GCC, which turned several of their old habits into hard errors.
 
@@ -19,7 +27,9 @@ OBJDIR = obj
 
 DEFS   = -DLINUX -DSAMPSRV -DHAVE_STDINT_H -DAMX_NODYNALOAD
 INC    = -I../sdk -I../sdk/amx
-COMMON = -m32 -w -fpack-struct=1 $(DEFS) $(INC)
+# the stack protector stays on by default, this is a network facing server and
+# the codebase has a history of unchecked lengths coming off the wire
+COMMON = -m32 -w -fstack-protector-strong $(DEFS) $(INC)
 
 OPT   = -O2
 DEPS  = -MMD -MP
