@@ -12,9 +12,6 @@
 // Note: Unique ID for RPCs must be between 0-255! Exceeding the range will cause integer overflow, and calls other unwanted registered function.
 // To change the range, modify UniqueID typedef in ./NetworkTypes.h from "unsigned char" (default data type) to "unsigned short" for 0-65535 range.
 
-UniqueID
-
-
 enum
 {
 	RPC_ServerJoin,

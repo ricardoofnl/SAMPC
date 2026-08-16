@@ -35,7 +35,7 @@ namespace RakNet
 #define BYTES_TO_BITS(x) ((x)<<3)
 
 /// \sa NetworkIDGenerator.h
-typedef unsigned char* UniqueID;
+typedef unsigned char UniqueID;
 typedef unsigned short PlayerIndex;
 //typedef short RPCIndex;
 //const int MAX_RPC_MAP_SIZE=((RPCIndex)-1)-1;
