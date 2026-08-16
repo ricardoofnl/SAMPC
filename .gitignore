@@ -38,6 +38,12 @@
 Debug/
 Release/
 
+# Linux server build output
+server/mpsvr
+server/mpsvrd
+server/obj/
+server/obj-debug/
+
 # That stupid settings.ini from Pawno
 pawno/settings.ini
 
