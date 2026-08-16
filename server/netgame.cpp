@@ -1,4 +1,4 @@
-﻿/*
+/*
 
 	SA:MP Multiplayer Modification
 	Copyright 2004-2005 SA:MP Team
@@ -799,33 +799,6 @@ int CNetGame::GetBroadcastSendRateFromPlayerDistance(float fDistance)
 
 //----------------------------------------------------
 
-// This function would also check for m_pPlayers[] from CPlayerPool, but not really required here 
-void CNetGame::BroadcastData( char* szUniqueID,
-							  RakNet::BitStream* bitStream,
-							  WORD wExcludedPlayer,
-							  char orderingStream)
-{
-	PacketReliability reliability;
-	int x=0;
-
-	if (!m_pPlayerPool || m_pPlayerPool->GetLastPlayerId() == -1) return;
-
-	reliability = RELIABLE_ORDERED;
-	if(orderingStream == 3)
-		reliability = RELIABLE;
-
-	while (x <= m_pPlayerPool->GetLastPlayerId())
-	{
-		if (m_pPlayerPool->GetSlotState(x) && x != (int)wExcludedPlayer)
-		{
-			m_pRak->RPC(szUniqueID, bitStream, HIGH_PRIORITY, reliability,
-				orderingStream, m_pRak->GetPlayerIDFromIndex(x), false, false);
-		}
-	}
-}
-
-//----------------------------------------------------
-
 void CNetGame::BroadcastData(UniqueID uniqueID, RakNet::BitStream* bitStream,
 	WORD wExcludedPlayer, char orderingStream)
 {
@@ -1314,7 +1287,7 @@ void CNetGame::Packet_InGameRcon(Packet* packet)
 			KickPlayer(packet->playerIndex);
 		}
 
-		szPassword = (szPassword != NULL) ? (szPassword) : ("");
+		szPassword = (szPassword != NULL) ? (szPassword) : ((char*)"");
 
 		if (m_pFilterScripts)
 			m_pFilterScripts->OnRconLoginAttempt(szIP, szPassword, bSuccess);

@@ -151,11 +151,6 @@ public:
 	bool SendToPlayer(unsigned int uiPlayerId, UniqueID nUniqId, RakNet::BitStream* pBitStream);
 	bool SendToAll(UniqueID nUniqId, RakNet::BitStream* pBitStream);
 
-	void BroadcastData(	char* szUniqueID,
-						RakNet::BitStream* bitStream,
-						WORD wExcludedPlayer,
-						char orderingStream);
-
 	void BroadcastVehicleRPC(UniqueID UniqueID, RakNet::BitStream* bitStream, VEHICLEID VehicleID, PLAYERID ExludedPlayer);
 
 	void BroadcastData(UniqueID uniqueID, RakNet::BitStream* bitStream, WORD wExcludedPlayer, char orderingStream);
