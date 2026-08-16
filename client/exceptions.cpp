@@ -20,6 +20,38 @@ static PEXCEPTION_POINTERS pExceptionPtrs = NULL;
 static char szCrashInfoFile[50] = { 0 };
 static DWORD dwExcWarningCount = 0;
 
+// turns a raw address into module+offset, a bare address is useless in a report
+// because the relocated bases differ on every run
+static const char* ResolveAddress(PVOID pAddress, char* szOut, size_t nOutSize)
+{
+	HANDLE hSnap;
+	MODULEENTRY32 me32;
+	BYTE* pTarget = (BYTE*)pAddress;
+
+	strcpy_s(szOut, nOutSize, "unknown module");
+
+	hSnap = CreateToolhelp32Snapshot(TH32CS_SNAPMODULE, GetCurrentProcessId());
+	if (hSnap == INVALID_HANDLE_VALUE)
+		return szOut;
+
+	me32.dwSize = sizeof(MODULEENTRY32);
+
+	if (Module32First(hSnap, &me32) == TRUE) {
+		do {
+			if (pTarget >= me32.modBaseAddr &&
+				pTarget < (me32.modBaseAddr + me32.modBaseSize))
+			{
+				sprintf_s(szOut, nOutSize, "%s+0x%X", me32.szModule,
+					(unsigned int)(pTarget - me32.modBaseAddr));
+				break;
+			}
+		} while (Module32Next(hSnap, &me32));
+	}
+
+	CloseHandle(hSnap);
+	return szOut;
+}
+
 static void DumpLoadedModules(FILE* f)
 {
 	HANDLE hModuleSnap;
@@ -91,9 +123,13 @@ static void DumpMain()
 	if (err == 0) {
 		DWORD* pdwStack;
 		
+		char szFaultModule[MAX_PATH + 32];
+
 		fprintf_s(f, "SA-MP " SAMP_VERSION " (" __DATE__ " " __TIME__ ")\n"
-			"Exception At Address: 0x%p\n",
-			pExceptionPtrs->ExceptionRecord->ExceptionAddress);
+			"Exception At Address: 0x%p (%s)\n",
+			pExceptionPtrs->ExceptionRecord->ExceptionAddress,
+			ResolveAddress(pExceptionPtrs->ExceptionRecord->ExceptionAddress,
+				szFaultModule, sizeof(szFaultModule)));
 		fflush(f);
 
 		switch (pExceptionPtrs->ExceptionRecord->ExceptionCode) {
@@ -192,7 +228,7 @@ static void DumpMain()
 
 		if(iGtaVersion == GTASA_VERSION_USA10)
 			fputs("\nGame Version: US 1.0\n", f);
-		else if (iGtaVersion == GTASA_VERSION_USA10)
+		else if (iGtaVersion == GTASA_VERSION_EU10)
 			fputs("\nGame Version: EU 1.0\n", f);
 		else
 			fputs("\nGame Version: UNKNOWN\n", f);
