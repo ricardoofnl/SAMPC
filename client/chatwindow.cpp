@@ -151,11 +151,17 @@ void CChatWindow::UpdateFontSizes()
 
 //----------------------------------------------------
 
-// keep in sync with the rect walk in DrawChatLines(), cmdwindow needs it
-// before the first frame is drawn
+// value SA-MP writes on the last DrawChatLines() iteration, precomputed here
+// because cmdwindow needs it before the first frame is drawn
 void CChatWindow::UpdateChatWindowBottom()
 {
-	m_lChatWindowBottom = 10 + (m_iPageSize * (m_lFontSizeY + 1)) + (2 * m_lFontSizeY) + 2;
+	if (!m_iPageSize)
+	{
+		m_lChatWindowBottom = 110;
+		return;
+	}
+
+	m_lChatWindowBottom = 10 + ((m_iPageSize - 1) * (m_lFontSizeY + 1)) + (2 * m_lFontSizeY) + 2;
 }
 
 //----------------------------------------------------
@@ -566,8 +572,11 @@ void CChatWindow::DrawChatLines()
 			iMessageAt++;
 			x++;
 		}
-		m_lChatWindowBottom = m_lFontSizeY + rect.bottom + 1;
 	}
+
+	// SA-MP stores it off the last line's top, not off the advanced rect,
+	// so the old expression sat one line too low
+	UpdateChatWindowBottom();
 }
 
 //----------------------------------------------------
