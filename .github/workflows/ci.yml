@@ -1,10 +1,18 @@
 name: CI
 
+# manual only, nothing here runs on push
 on:
-  push:
-    branches: [ main ]
-  pull_request:
   workflow_dispatch:
+    inputs:
+      targets:
+        description: 'What to build'
+        type: choice
+        default: all
+        options:
+          - all
+          - server-linux
+          - server-windows
+          - client-windows
 
 permissions:
   contents: read
@@ -16,6 +24,7 @@ concurrency:
 jobs:
   server-linux:
     name: Server (linux x86)
+    if: inputs.targets == 'all' || inputs.targets == 'server-linux'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -26,8 +35,11 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y gcc-multilib g++-multilib
 
+      # the guards are explicit rather than left to whatever the distro gcc spec
+      # injects, so the smoke test below trips on memory bugs the same way
+      # everywhere
       - name: Build server
-        run: make -C server -j"$(nproc)"
+        run: make -C server -j"$(nproc)" OPT="-O2 -D_FORTIFY_SOURCE=3 -fstack-protector-strong"
 
       - name: Build announce
         run: make -C announce -j"$(nproc)"
@@ -47,13 +59,28 @@ jobs:
           query 0
           rcon_password citest
           EOF
-          timeout 15 ./mpsvr >/dev/null 2>&1 || true
-          echo '--- server_log.txt ---'
-          cat server_log.txt
-          # with no gamemode0 the server has to start, read the config and then
-          # bail out with this exact complaint
-          grep -q 'It needs a gamemode0 line' server_log.txt
+          # stderr is kept, an abort message from the hardening guards only ever
+          # shows up there
+          set +e
+          timeout 15 ./mpsvr > run.out 2> run.err
+          rc=$?
+          set -e
+          echo "--- exit code: $rc ---"
+          echo '--- stderr ---'; cat run.err
+          echo '--- server_log.txt ---'; cat server_log.txt
+
+          # 124 is the timeout killing a healthy server, anything at or above 128
+          # is a signal, which means it crashed
+          if [ "$rc" -ge 128 ]; then
+            echo "server died on signal $((rc - 128))"
+            exit 1
+          fi
+          [ ! -s run.err ] || { echo "server wrote to stderr"; exit 1; }
+
+          # with no gamemode0 it has to start, read the config, then bail out
+          # with this exact complaint
           grep -q 'SA-MP Dedicated Server' server_log.txt
+          grep -q 'It needs a gamemode0 line' server_log.txt
 
       - uses: actions/upload-artifact@v4
         with:
@@ -65,23 +92,40 @@ jobs:
 
   server-windows:
     name: Server (windows x86)
+    if: inputs.targets == 'all' || inputs.targets == 'server-windows'
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
       - uses: microsoft/setup-msbuild@v2
 
       - name: Build server
-        run: msbuild server/server.sln /p:Configuration=Release /p:Platform=Win32 /m /v:minimal
+        run: msbuild server/server.sln /p:Configuration=Release /p:Platform=x86 /m /v:minimal
 
       - name: Build announce
-        run: msbuild announce/announce.sln /p:Configuration=Release /p:Platform=Win32 /m /v:minimal
+        run: msbuild announce/announce.sln /p:Configuration=Release /p:Platform=x86 /m /v:minimal
 
       - name: Collect
         shell: bash
         run: |
+          set -eu
           mkdir -p out
-          cp server/Release/server.exe out/
-          cp announce/Release/announce.exe out/ || echo "announce.exe not produced"
+          # Win32 projects land in <sln dir>/Release, but do not guess silently
+          grab() {
+            local name=$1 root=$2 required=$3 hit
+            hit=$(find "$root" -name "$name" -type f -print -quit)
+            if [ -n "$hit" ]; then
+              cp "$hit" out/
+              echo "collected $name from $hit"
+            elif [ "$required" = required ]; then
+              echo "could not find $name under $root, tree was:"
+              find "$root" -name '*.exe' -o -name '*.dll' | head -40
+              exit 1
+            else
+              echo "note, $name not produced"
+            fi
+          }
+          grab server.exe   server   required
+          grab announce.exe announce optional
 
       - uses: actions/upload-artifact@v4
         with:
@@ -96,7 +140,7 @@ jobs:
     # detours.lib. None of those are redistributable from this repository, so
     # this job only runs once the CLIENT_DEPS_URL repository variable points at
     # an archive holding them. See dist/client/README.txt for the layout.
-    if: vars.CLIENT_DEPS_URL != ''
+    if: (inputs.targets == 'all' || inputs.targets == 'client-windows') && vars.CLIENT_DEPS_URL != ''
     steps:
       - uses: actions/checkout@v4
       - uses: microsoft/setup-msbuild@v2
@@ -118,18 +162,26 @@ jobs:
           echo "DXSDK_DIR=$(pwd -W)/deps/" >> "$GITHUB_ENV"
 
       - name: Build client
-        run: msbuild client/client.sln /p:Configuration=Release /p:Platform=Win32 /m /v:minimal
+        run: msbuild client/client.sln /p:Configuration=Release /p:Platform=x86 /m /v:minimal
 
       - name: Build debug launcher
         continue-on-error: true
-        run: msbuild launch3/launch3.sln /p:Configuration=Release /p:Platform=Win32 /m /v:minimal
+        run: msbuild launch3/launch3.sln /p:Configuration=Release /p:Platform=x86 /m /v:minimal
 
       - name: Collect
         shell: bash
         run: |
+          set -eu
           mkdir -p out
-          cp client/Release/samp.dll out/
-          cp launch3/Release/samp_debug.exe out/ || echo "samp_debug.exe not produced"
+          hit=$(find client -name samp.dll -type f -print -quit)
+          if [ -z "$hit" ]; then
+            echo "samp.dll was not produced, tree was:"
+            find client -name '*.dll' | head -40
+            exit 1
+          fi
+          cp "$hit" out/
+          hit=$(find launch3 -name samp_debug.exe -type f -print -quit || true)
+          [ -n "$hit" ] && cp "$hit" out/ || echo "note, samp_debug.exe not produced"
 
       - uses: actions/upload-artifact@v4
         with:

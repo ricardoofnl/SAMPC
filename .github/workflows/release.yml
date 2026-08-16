@@ -56,11 +56,11 @@ jobs:
       - uses: microsoft/setup-msbuild@v2
 
       - name: Build server
-        run: msbuild server/server.sln /p:Configuration=Release /p:Platform=Win32 /m /v:minimal
+        run: msbuild server/server.sln /p:Configuration=Release /p:Platform=x86 /m /v:minimal
 
       - name: Build announce
         continue-on-error: true
-        run: msbuild announce/announce.sln /p:Configuration=Release /p:Platform=Win32 /m /v:minimal
+        run: msbuild announce/announce.sln /p:Configuration=Release /p:Platform=x86 /m /v:minimal
 
       # see the client-windows job in ci.yml for why this is conditional
       - name: Fetch client dependencies
@@ -79,12 +79,12 @@ jobs:
 
       - name: Build client
         if: vars.CLIENT_DEPS_URL != ''
-        run: msbuild client/client.sln /p:Configuration=Release /p:Platform=Win32 /m /v:minimal
+        run: msbuild client/client.sln /p:Configuration=Release /p:Platform=x86 /m /v:minimal
 
       - name: Build debug launcher
         if: vars.CLIENT_DEPS_URL != ''
         continue-on-error: true
-        run: msbuild launch3/launch3.sln /p:Configuration=Release /p:Platform=Win32 /m /v:minimal
+        run: msbuild launch3/launch3.sln /p:Configuration=Release /p:Platform=x86 /m /v:minimal
 
       - name: Collect
         id: collect
@@ -92,12 +92,26 @@ jobs:
         run: |
           set -eu
           mkdir -p out-server out-client
-          cp server/Release/server.exe out-server/
-          cp announce/Release/announce.exe out-server/ 2>/dev/null || true
 
-          if [ -f client/Release/samp.dll ]; then
-            cp client/Release/samp.dll out-client/
-            cp launch3/Release/samp_debug.exe out-client/ 2>/dev/null || true
+          # Win32 projects land in <sln dir>/Release, found rather than assumed
+          find_one() { find "$2" -name "$1" -type f -print -quit; }
+
+          srv=$(find_one server.exe server)
+          if [ -z "$srv" ]; then
+            echo "server.exe was not produced, tree was:"
+            find server -name '*.exe' | head -40
+            exit 1
+          fi
+          cp "$srv" out-server/
+
+          ann=$(find_one announce.exe announce || true)
+          [ -n "$ann" ] && cp "$ann" out-server/ || echo "note, announce.exe not produced"
+
+          dll=$(find_one samp.dll client || true)
+          if [ -n "$dll" ]; then
+            cp "$dll" out-client/
+            dbg=$(find_one samp_debug.exe launch3 || true)
+            [ -n "$dbg" ] && cp "$dbg" out-client/ || true
             echo "client_built=true" >> "$GITHUB_OUTPUT"
           else
             echo "client_built=false" >> "$GITHUB_OUTPUT"
