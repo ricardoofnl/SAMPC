@@ -47,10 +47,8 @@ jobs:
           if-no-files-found: error
 
   build-windows:
-    name: Server and client (windows x86)
+    name: Server (windows x86)
     runs-on: windows-latest
-    outputs:
-      client_built: ${{ steps.collect.outputs.client_built }}
     steps:
       - uses: actions/checkout@v4
       - uses: microsoft/setup-msbuild@v2
@@ -62,45 +60,11 @@ jobs:
         continue-on-error: true
         run: msbuild announce/announce.sln /p:Configuration=Release /p:Platform=x86 /m /v:minimal
 
-      # standalone tools, no client dependencies, so they ship regardless
-      - name: Build tools
-        run: |
-          msbuild rcon/rcon.vcxproj /p:Configuration=Release /p:Platform=Win32 /v:minimal
-          msbuild arctool2/arctool2.vcxproj /p:Configuration=Release /p:Platform=Win32 /v:minimal
-
-      # see the client-windows job in ci.yml for why this is conditional
-      - name: Check out client dependencies
-        if: vars.CLIENT_DEPS_REPO != ''
-        uses: actions/checkout@v4
-        with:
-          repository: ${{ vars.CLIENT_DEPS_REPO }}
-          token: ${{ secrets.CLIENT_DEPS_TOKEN }}
-          path: deps
-
-      - name: Place client dependencies
-        if: vars.CLIENT_DEPS_REPO != ''
-        shell: bash
-        run: |
-          set -eu
-          cp deps/lib/x86/bass.lib    sdk/bass/bass.lib
-          cp deps/lib/x86/detours.lib sdk/detours/detours.lib
-          echo "DXSDK_DIR=$(pwd -W)/deps/" >> "$GITHUB_ENV"
-
-      - name: Build client
-        if: vars.CLIENT_DEPS_REPO != ''
-        run: msbuild client/client.sln /p:Configuration=Release /p:Platform=x86 /m /v:minimal
-
-      - name: Build debug launcher
-        if: vars.CLIENT_DEPS_REPO != ''
-        continue-on-error: true
-        run: msbuild launch3/launch3.sln /p:Configuration=Release /p:Platform=x86 /m /v:minimal
-
       - name: Collect
-        id: collect
         shell: bash
         run: |
           set -eu
-          mkdir -p out-server out-client out-tools
+          mkdir -p out
 
           # Win32 projects land in <project dir>/Release, found rather than assumed
           find_one() { find "$2" -name "$1" -type f -print -quit; }
@@ -111,47 +75,15 @@ jobs:
             find server -name '*.exe' | head -40
             exit 1
           fi
-          cp "$srv" out-server/
+          cp "$srv" out/
 
           ann=$(find_one announce.exe announce || true)
-          [ -n "$ann" ] && cp "$ann" out-server/ || echo "note, announce.exe not produced"
-
-          rc=$(find_one rcon.exe rcon)
-          arc=$(find_one arctool2.exe arctool2)
-          if [ -z "$rc" ] || [ -z "$arc" ]; then
-            echo "a tool was not produced: rcon.exe='$rc' arctool2.exe='$arc'"
-            exit 1
-          fi
-          cp "$rc" "$arc" out-tools/
-
-          dll=$(find_one samp.dll client || true)
-          if [ -n "$dll" ]; then
-            cp "$dll" out-client/
-            dbg=$(find_one samp_debug.exe launch3 || true)
-            [ -n "$dbg" ] && cp "$dbg" out-client/ || true
-            echo "client_built=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "client_built=false" >> "$GITHUB_OUTPUT"
-            # keep the artifact upload happy
-            echo "client was not built, see the release notes" > out-client/NOT_BUILT.txt
-          fi
+          [ -n "$ann" ] && cp "$ann" out/ || echo "note, announce.exe not produced"
 
       - uses: actions/upload-artifact@v4
         with:
           name: build-server-windows
-          path: out-server/
-          if-no-files-found: error
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: build-tools-windows
-          path: out-tools/
-          if-no-files-found: error
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: build-client-windows
-          path: out-client/
+          path: out/
           if-no-files-found: error
 
   release:
@@ -202,18 +134,11 @@ jobs:
           mkdir -p release
           dist/package.sh server-linux   "$VERSION" artifacts/build-server-linux   release
           dist/package.sh server-windows "$VERSION" artifacts/build-server-windows release
-          dist/package.sh tools-windows  "$VERSION" artifacts/build-tools-windows  release
-          if [ "${{ needs.build-windows.outputs.client_built }}" = "true" ]; then
-            dist/package.sh client-windows "$VERSION" artifacts/build-client-windows release
-          else
-            echo "skipping the client zip, samp.dll was not built"
-          fi
           ls -la release
 
       - name: Write the release notes
         env:
           VERSION: ${{ inputs.version }}
-          CLIENT_BUILT: ${{ needs.build-windows.outputs.client_built }}
         run: |
           set -eu
           prev=$(git tag --list 'v*' --sort=-v:refname | head -n1 || true)
@@ -241,12 +166,10 @@ jobs:
             echo
             echo "- \`sampc-$VERSION-server-linux.zip\` 32 bit linux server, ready to run"
             echo "- \`sampc-$VERSION-server-windows.zip\` 32 bit windows server, ready to run"
-            echo "- \`sampc-$VERSION-tools-windows.zip\` \`rcon.exe\` and \`arctool2.exe\`, standalone, no dependencies"
-            if [ "$CLIENT_BUILT" = "true" ]; then
-              echo "- \`sampc-$VERSION-client-windows.zip\` \`samp.dll\` for GTA:SA 1.0 US or EU"
-            else
-              echo "- no client zip in this release. \`samp.dll\` needs d3dx9 plus \`bass.lib\` and \`detours.lib\`, none of which can be redistributed here. Set the \`CLIENT_DEPS_REPO\` variable and the \`CLIENT_DEPS_TOKEN\` secret to enable the client build, see BUILDING.md."
-            fi
+            echo
+            echo "The client zip is uploaded separately, this workflow does not build it."
+            echo "It needs d3dx9, \`bass.lib\` and \`detours.lib\`, none of which can be"
+            echo "redistributed here, plus loose assets the repository never carried."
             echo
 
             echo "Client and server from the same release have to be used together, the"

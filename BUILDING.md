@@ -100,9 +100,18 @@ does not exist here.
 | `testbot/` | `bot.exe` | A development bot. Its `.vcproj` references `..\raknet`, a path from the original tree, and pulls in a much larger RakNet set than `sdk/raknet` provides. |
 | `quicklauncher/` | `quick_launcher.exe` | An AutoIt `.au3` script, needs Aut2Exe. |
 
-`samp.saa` is not a build target either. `archive/filelist.txt` references GTA:SA
-data files plus `scm/main.scm` and `scm/script.img`, so only someone with the game
-data can produce it, using the `arctool2.exe` from the tools zip.
+`samp.saa` is not a CI target either, only because `archive/filelist.txt` references
+GTA:SA data files. Everything else it needs is in the tree, `archive/files/`,
+`scm/main.scm`, `scm/script.img` and the key pair, so with the game data on hand:
+
+```text
+cd archive
+arctool2.exe -c filelist.txt build/samp.saa
+arctool2.exe -v filelist.txt build/samp.saa
+```
+
+The committed `archive/build/samp.saa` was stale and failed `-v` on its first entry,
+so it has been rebuilt from the current `archive/files/`.
 
 ## Client, cross compiling on linux with msvc-wine
 
@@ -173,34 +182,18 @@ list the original installer shipped.
 
 Both workflows are manual only, under Actions.
 
-`ci.yml` builds and smoke tests. `release.yml` takes a version, builds everything,
-writes release notes from `git log` since the previous tag, and attaches the zips
-that `dist/package.sh` produces.
+**CI covers the server only.** `ci.yml` builds and smoke tests it, `release.yml`
+takes a version, writes release notes from `git log` since the previous tag, and
+attaches the two server zips that `dist/package.sh` produces.
 
-The client jobs in both stay skipped until the client dependencies are reachable.
-They are third party binaries with their own licence terms, so they live in a
-separate private repository laid out as:
+The client is not built in CI and is uploaded to the release by hand as
+`SAMPC-<version>-client.zip`. A runner cannot assemble it: it needs d3dx9,
+`bass.lib` and `detours.lib`, none of them redistributable, plus loose assets the
+repository never carried, namely `sampgui.png`, `mouse.png` and `samp-license.txt`.
 
-```text
-include/     the d3dx9 headers, d3dx9math.inl, dxerr9.h, DxErr.h
-lib/x86/     d3dx9.lib, bass.lib, detours.lib
-```
-
-Two settings on the SAMPC side, both under Settings, Secrets and variables,
-Actions:
-
-| kind | name | value |
-| --- | --- | --- |
-| Variable | `CLIENT_DEPS_REPO` | `owner/sampc-client-deps` |
-| Secret | `CLIENT_DEPS_TOKEN` | fine grained PAT, `Contents: Read`, scoped to that repository |
-
-The variable doubles as the on/off switch because the `secrets` context is not
-available in a workflow `if` expression. With it unset, the client jobs skip and
-the release still publishes both server zips, saying in the notes why the client
-is absent.
-
-The built in `GITHUB_TOKEN` cannot be used, it only reaches the repository the
-workflow runs in.
+Everything that goes in it is buildable from this tree though, see the sections
+above plus `arctool2` for `samp.saa`. The rest has to come from an existing SA-MP
+install.
 
 `release.yml` also pulls a pinned upstream `pawncc` release so `dist/package.sh`
 can precompile `gamemodes/bare.amx` into the server zips. It installs the binary

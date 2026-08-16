@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
 #
-# assemble a release zip, always on linux even for the windows packages so the
-# layout comes from exactly one code path
+# assemble a server release zip, always on linux even for the windows package so
+# the layout comes from exactly one code path. the client is packaged by
+# dist/package-client.sh, it is not built in CI
 #
 # usage: dist/package.sh <target> <version> <artifact-dir> <output-dir>
 #
-#   target       server-linux | server-windows | client-windows | tools-windows
+#   target       server-linux | server-windows
 #   version      goes into the zip name, e.g. 0.3.9-A5
 #   artifact-dir directory holding the built binaries
 #   output-dir   where the zip is written
@@ -92,19 +93,6 @@ server-windows)
 	stage_server_common
 	need "$ARTIFACTS/server.exe"   "$PKG/samp-server.exe"
 	want "$ARTIFACTS/announce.exe" "$PKG/announce.exe"
-	;;
-client-windows)
-	cp "$ROOT/dist/client/README.txt" "$PKG/README.txt"
-	need "$ARTIFACTS/samp.dll"       "$PKG/samp.dll"
-	want "$ARTIFACTS/samp_debug.exe" "$PKG/samp_debug.exe"
-	;;
-tools-windows)
-	cp "$ROOT/dist/tools/README.txt" "$PKG/README.txt"
-	need "$ARTIFACTS/rcon.exe"     "$PKG/rcon.exe"
-	want "$ARTIFACTS/arctool2.exe" "$PKG/arctool2.exe"
-	# the file lists arctool2 consumes, so samp.saa can be rebuilt
-	mkdir -p "$PKG/archive"
-	cp "$ROOT/archive/filelist.txt" "$ROOT/archive/filelistgtau.txt" "$PKG/archive/"
 	;;
 *)
 	echo "package.sh: unknown target: $TARGET" >&2
