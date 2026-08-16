@@ -32,7 +32,7 @@ which smashed the stack in `CPlugins::LoadPlugins`.
 
 ## Server, windows
 
-```
+```text
 msbuild server/server.sln /p:Configuration=Release /p:Platform=x86
 ```
 
@@ -68,7 +68,7 @@ one line `DxErr.h` beside it that includes `dxerr9.h`, because
 `sdk/dxut/dxstdafx.h` asks for the newer name. No dxerr library is needed, DXUT's
 `DXTrace` is redirected to `DXTraceWrapper` in `sdk/dxut/DXUTmisc.cpp`.
 
-```
+```text
 msbuild client/client.sln /p:Configuration=Release /p:Platform=x86
 ```
 
@@ -121,7 +121,7 @@ optional.
 
 `samp.dll` alone is an update, not an install. Check what it actually imports:
 
-```
+```text
 dumpbin /dependents client/Release/samp.dll
 ```
 
@@ -141,19 +141,31 @@ list the original installer shipped.
 
 Both workflows are manual only, under Actions.
 
-`ci.yml` builds and smoke tests. Its `client-windows` job stays skipped until the
-`CLIENT_DEPS_URL` repository variable points at a zip laid out as:
+`ci.yml` builds and smoke tests. `release.yml` takes a version, builds everything,
+writes release notes from `git log` since the previous tag, and attaches the zips
+that `dist/package.sh` produces.
 
-```
+The client jobs in both stay skipped until the client dependencies are reachable.
+They are third party binaries with their own licence terms, so they live in a
+separate private repository laid out as:
+
+```text
 include/     the d3dx9 headers, d3dx9math.inl, dxerr9.h, DxErr.h
 lib/x86/     d3dx9.lib, bass.lib, detours.lib
 ```
 
-Set it under Settings, Secrets and variables, Actions, Variables. That archive
-contains third party binaries with their own licence terms, so host it somewhere
-you control rather than publishing it.
+Two settings on the SAMPC side, both under Settings, Secrets and variables,
+Actions:
 
-`release.yml` takes a version, builds everything, writes release notes from
-`git log` since the previous tag, and attaches the zips that `dist/package.sh`
-produces. Without `CLIENT_DEPS_URL` it still publishes both server zips and says
-in the notes why the client is absent.
+| kind | name | value |
+| --- | --- | --- |
+| Variable | `CLIENT_DEPS_REPO` | `owner/sampc-client-deps` |
+| Secret | `CLIENT_DEPS_TOKEN` | fine grained PAT, `Contents: Read`, scoped to that repository |
+
+The variable doubles as the on/off switch because the `secrets` context is not
+available in a workflow `if` expression. With it unset, the client jobs skip and
+the release still publishes both server zips, saying in the notes why the client
+is absent.
+
+The built in `GITHUB_TOKEN` cannot be used, it only reaches the repository the
+workflow runs in.

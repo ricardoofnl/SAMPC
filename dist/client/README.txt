@@ -69,9 +69,8 @@ See BUILDING.md for a working recipe, including cross compiling on linux.
 Building samp.dll in CI
 -----------------------
 
-.github/workflows/ci.yml has a client job that stays skipped until the
-CLIENT_DEPS_URL repository variable is set. Point it at a zip laid out like
-this and the client build and the client release zip both start working:
+The client jobs in ci.yml and release.yml stay skipped until the dependencies are
+reachable. They live in a separate private repository, laid out as:
 
   include/       the d3dx9 headers, plus d3dx9math.inl and dxerr9.h
   lib/x86/       d3dx9.lib, bass.lib, detours.lib
@@ -79,9 +78,12 @@ this and the client build and the client release zip both start working:
 If your SDK is old enough to ship dxerr9.h rather than DxErr.h, add a one line
 DxErr.h next to it that includes dxerr9.h. dxstdafx.h asks for the newer name.
 
-Set it under Settings, Secrets and variables, Actions, Variables. Use a URL that
-the runner can fetch without credentials, or switch the workflow step to a
-secret if it needs one.
+Two settings enable it, both under Settings, Secrets and variables, Actions:
+
+  variable CLIENT_DEPS_REPO   owner/sampc-client-deps
+  secret   CLIENT_DEPS_TOKEN  fine grained PAT, Contents: Read on that repository
+
+See BUILDING.md for the details.
 
 
 Install

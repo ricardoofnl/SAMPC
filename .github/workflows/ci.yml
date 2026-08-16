@@ -134,27 +134,29 @@ jobs:
   client-windows:
     name: Client (windows x86)
     runs-on: windows-latest
-    # needs the DirectX SDK June 2010, bass.lib and detours.lib, none of them
-    # redistributable here, see dist/client/README.txt for the CLIENT_DEPS_URL layout
-    if: (inputs.targets == 'all' || inputs.targets == 'client-windows') && vars.CLIENT_DEPS_URL != ''
+    # d3dx9, bass.lib and detours.lib are not redistributable from here, they live
+    # in a private repository. CLIENT_DEPS_REPO doubles as the on/off switch,
+    # secrets are not available in an if expression. see BUILDING.md
+    if: (inputs.targets == 'all' || inputs.targets == 'client-windows') && vars.CLIENT_DEPS_REPO != ''
     steps:
       - uses: actions/checkout@v4
       - uses: microsoft/setup-msbuild@v2
 
-      - name: Fetch client dependencies
+      - name: Check out client dependencies
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ vars.CLIENT_DEPS_REPO }}
+          token: ${{ secrets.CLIENT_DEPS_TOKEN }}
+          path: deps
+
+      - name: Place client dependencies
         shell: bash
-        env:
-          CLIENT_DEPS_URL: ${{ vars.CLIENT_DEPS_URL }}
         run: |
           set -eu
-          curl -fsSL "$CLIENT_DEPS_URL" -o deps.zip
-          mkdir -p deps
-          unzip -q deps.zip -d deps
           # the vcxproj expects these two exact paths
           cp deps/lib/x86/bass.lib    sdk/bass/bass.lib
           cp deps/lib/x86/detours.lib sdk/detours/detours.lib
-          # $(DXSDK_DIR) is used unseparated as $(DXSDK_DIR)Include, so it has
-          # to keep the trailing backslash
+          # $(DXSDK_DIR) is used unseparated as $(DXSDK_DIR)Include, keep the slash
           echo "DXSDK_DIR=$(pwd -W)/deps/" >> "$GITHUB_ENV"
 
       - name: Build client
