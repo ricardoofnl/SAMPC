@@ -27,6 +27,48 @@ needs these, and none of them are redistributable from this repository:
 See nsis/samp.nsi for the file list the original installer shipped.
 
 
+Building samp.dll yourself
+--------------------------
+
+Toolchain: Visual Studio 2019 or newer, platform toolset v142, Release|Win32.
+
+Three dependencies are not in the repository:
+
+  DirectX SDK June 2010   for d3dx9.h, d3dx9core.h, DxErr.h and d3dx9.lib.
+                          D3DX was removed from the Windows SDK, so the legacy
+                          SDK is the only source. client.vcxproj reads it from
+                          $(DXSDK_DIR), used unseparated as $(DXSDK_DIR)Include
+                          and $(DXSDK_DIR)Lib\x86, so the variable has to keep
+                          its trailing backslash.
+
+  bass.lib                from un4seen, dropped at sdk/bass/bass.lib.
+
+  detours.lib             Microsoft Detours, dropped at sdk/detours/detours.lib.
+                          detours.h has a #pragma comment(lib, "detours").
+
+Both .lib paths are already listed in client.vcxproj, so the files just have to
+exist. Note that *.lib is gitignored, which is why they were never committed.
+
+If the link fails on DXTrace or DXGetErrorString, add dxerr.lib to the client
+project's linker inputs. DXUT calls those from DXUT.cpp, DXUTgui.cpp and
+DXUTmisc.cpp, and the committed project does not list the library.
+
+
+Building samp.dll in CI
+-----------------------
+
+.github/workflows/ci.yml has a client job that stays skipped until the
+CLIENT_DEPS_URL repository variable is set. Point it at a zip laid out like
+this and the client build and the client release zip both start working:
+
+  include/       d3dx9.h, d3dx9core.h, DxErr.h and friends
+  lib/x86/       d3dx9.lib, dxerr.lib, bass.lib, detours.lib
+
+Set it under Settings, Secrets and variables, Actions, Variables. Use a URL that
+the runner can fetch without credentials, or switch the workflow step to a
+secret if it needs one.
+
+
 Install
 -------
 
