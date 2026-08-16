@@ -6015,7 +6015,7 @@ static cell n_CreateMenu(AMX *amx, cell *params)
 	float fX = amx_ctof(params[3]), fY = amx_ctof(params[4]),
 		fCol1Width = amx_ctof(params[5]), fCol2Width = amx_ctof(params[6]);
 	amx_StrParam(amx, params[1], szMenuTitle);
-	BYTE menuid = pMenuPool->New((szMenuTitle != 0) ? (szMenuTitle) : (""), fX, fY, params[2], fCol1Width, fCol2Width);
+	BYTE menuid = pMenuPool->New((szMenuTitle != 0) ? (szMenuTitle) : ((char*)""), fX, fY, params[2], fCol1Width, fCol2Width);
 	return menuid != 0xFF ? (menuid) : (-1);
 }
 
@@ -6041,7 +6041,7 @@ static cell n_AddMenuItem(AMX *amx, cell *params)
 		return 0;
 	char* szItemText;
 	amx_StrParam(amx, params[3], szItemText);
-	BYTE ret = pMenu->AddMenuItem(params[2], szItemText ? (szItemText) : (""));
+	BYTE ret = pMenu->AddMenuItem(params[2], szItemText ? (szItemText) : ((char*)""));
 	return ret != 0xFF ? (ret) : (-1);
 }
 
@@ -6057,7 +6057,7 @@ static cell n_SetMenuColumnHeader(AMX *amx, cell *params)
 		return 0;
 	char* szItemText;
 	amx_StrParam(amx, params[3], szItemText);
-	pMenu->SetColumnTitle(params[2], szItemText ? (szItemText) : (""));
+	pMenu->SetColumnTitle(params[2], szItemText ? (szItemText) : ((char*)""));
 	return 1;
 }
 
@@ -6595,7 +6595,7 @@ static cell n_TextDrawCreate(AMX *amx, cell *params)
 	{
 		char* szText;
 		amx_StrParam(amx, params[3], szText);
-		szText = (szText != NULL) ? (szText) : ("");
+		szText = (szText != NULL) ? (szText) : ((char*)"");
 		return pTextDraw->New(amx_ctof(params[1]), amx_ctof(params[2]), szText);
 	}
 	return 0xFFFF;
@@ -6609,7 +6609,7 @@ static cell n_TextDrawSetString(AMX *amx, cell *params)
 	{
 		char* szText;
 		amx_StrParam(amx, params[2], szText);
-		szText = (szText != NULL) ? (szText) : ("");
+		szText = (szText != NULL) ? (szText) : ((char*)"");
 		pTextDraw->SetTextString(params[1], szText);
 		return 1;
 	}
@@ -6853,7 +6853,7 @@ static cell n_CreatePlayerTextDraw(AMX* amx, cell* params)
 			amx_StrParam(amx, params[4], szText);
 			fX = amx_ctof(params[2]);
 			fY = amx_ctof(params[3]);
-			return pPlayer->m_pTextDraw->New(fX, fY, (szText != 0) ? szText : "");
+			return pPlayer->m_pTextDraw->New(fX, fY, (szText != 0) ? szText : (char*)"");
 		}
 	}
 	return INVALID_PLAYER_TEXT_DRAW;
@@ -7119,7 +7119,7 @@ static cell n_PlayerTextDrawSetString(AMX* amx, cell* params)
 		CPlayer* pPlayer = pNetGame->GetPlayerPool()->GetAt(params[1]);
 		if (pPlayer && pPlayer->m_pTextDraw && pPlayer->m_pTextDraw->IsValid(params[2])) {
 			amx_StrParam(amx, params[3], szText);
-			pPlayer->m_pTextDraw->SetTextString(params[2], (szText != NULL) ? szText : "");
+			pPlayer->m_pTextDraw->SetTextString(params[2], (szText != NULL) ? szText : (char*)"");
 			return 1;
 		}
 	}

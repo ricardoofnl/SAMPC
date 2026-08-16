@@ -461,7 +461,7 @@ void CPlugins::LoadPlugins(std::string strPath)
 #else
 				char* szDLError = 0;
 				szDLError = PLUGIN_GETERROR();
-				logprintf((szDLError) ? ("  Failed. (%s)") : ("  Failed."), szDLError);
+				logprintf((szDLError) ? ((char*)"  Failed. (%s)") : ((char*)"  Failed."), szDLError);
 #endif
 			}
 		}

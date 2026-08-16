@@ -1,22 +1,13 @@
-# Linux build for the SA:MP server (mpsvr).
+# linux build for the SA:MP server, 32 bit only
 #
-# 32 bit only, the network structs and the plugin ABI depend on it. On a 64 bit
-# host you need the 32 bit toolchain bits, e.g. on Fedora:
-#   dnf install glibc-devel.i686 libstdc++-devel.i686
-# on Debian/Ubuntu:
-#   apt install gcc-multilib g++-multilib
+# needs the 32 bit toolchain on a 64 bit host:
+#   fedora: dnf install glibc-devel.i686 libstdc++-devel.i686
+#   debian: apt install gcc-multilib g++-multilib
 #
-# No -fpack-struct here, on purpose. The old Makefile passed -fpack-struct=1 and
-# that is wrong twice over. The sync structs in sdk/shared.h go over the wire raw
-# via sizeof(), and MSVC compiles them at its default alignment for both the
-# windows server and the client, so a packed linux server cannot talk to either
-# (AIM_SYNC_DATA is 36 bytes under MSVC and 31 when packed). It also breaks
-# std::string and std::istringstream, which get a packed layout here while the
-# prebuilt libstdc++ uses the normal one, and that smashes the stack the moment
-# one is constructed. See CPlugins::LoadPlugins.
-#
-# -fpermissive keeps the vendored RakNet and Pawn AMX sources buildable on
-# modern GCC, which turned several of their old habits into hard errors.
+# no -fpack-struct, deliberately. the old Makefile had it and it broke two things
+# at once: AIM_SYNC_DATA became 31 bytes where MSVC makes 36 and those structs go
+# over the wire raw via sizeof(), and std::istringstream got a packed layout that
+# libstdc++ does not share, smashing the stack in CPlugins::LoadPlugins
 
 CC  = gcc
 CXX = g++
@@ -33,8 +24,16 @@ COMMON = -m32 -w -fstack-protector-strong $(DEFS) $(INC)
 
 OPT   = -O2
 DEPS  = -MMD -MP
-CFLAGS   = $(COMMON) $(OPT) $(DEPS) -fpermissive
-CXXFLAGS = $(COMMON) $(OPT) $(DEPS) -fpermissive
+BASE  = $(COMMON) $(OPT) $(DEPS)
+
+# server sources stay strict, -fpermissive here would hide real type errors and
+# leave MSVC to catch them first
+CXXFLAGS = $(BASE)
+
+# vendored raknet and pawn amx need it, modern gcc rejects their old habits
+VENDOR_CXXFLAGS = $(BASE) -fpermissive
+CFLAGS          = $(BASE) -fpermissive
+
 LDFLAGS  = -m32
 LIBS     = -ldl -lpthread -lm
 
@@ -92,8 +91,9 @@ AMX_SRCS = \
 
 SQLITE_SRCS = ../sdk/sqlite/sqlite3.c
 
-CXX_SRCS = $(SRV_SRCS) $(RAK_SRCS) $(SHA2_SRCS)
-C_SRCS   = $(AMX_SRCS) $(SQLITE_SRCS)
+VENDOR_CXX_SRCS = $(RAK_SRCS) $(SHA2_SRCS)
+CXX_SRCS        = $(SRV_SRCS) $(VENDOR_CXX_SRCS)
+C_SRCS          = $(AMX_SRCS) $(SQLITE_SRCS)
 
 # flatten the paths so objects from different directories cannot collide
 OBJS = $(addprefix $(OBJDIR)/,$(subst /,_,$(CXX_SRCS:.cpp=.o) $(C_SRCS:.c=.o)))
@@ -116,13 +116,20 @@ $(OBJDIR)/$(subst /,_,$(basename $(1))).o: $(1)
 	$$(CXX) $$(CXXFLAGS) -c $$< -o $$@
 endef
 
+define OBJ_RULE_VENDOR_CXX
+$(OBJDIR)/$(subst /,_,$(basename $(1))).o: $(1)
+	@mkdir -p $(OBJDIR)
+	$$(CXX) $$(VENDOR_CXXFLAGS) -c $$< -o $$@
+endef
+
 define OBJ_RULE_C
 $(OBJDIR)/$(subst /,_,$(basename $(1))).o: $(1)
 	@mkdir -p $(OBJDIR)
 	$$(CC) $$(CFLAGS) -c $$< -o $$@
 endef
 
-$(foreach s,$(CXX_SRCS),$(eval $(call OBJ_RULE_CXX,$(s))))
+$(foreach s,$(SRV_SRCS),$(eval $(call OBJ_RULE_CXX,$(s))))
+$(foreach s,$(VENDOR_CXX_SRCS),$(eval $(call OBJ_RULE_VENDOR_CXX,$(s))))
 $(foreach s,$(C_SRCS),$(eval $(call OBJ_RULE_C,$(s))))
 
 -include $(OBJS:.o=.d)

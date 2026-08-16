@@ -22,6 +22,13 @@
 #include "RakAssert.h"
 #include "NetworkTypes.h"
 
+#include <math.h>
+
+// WriteOrthMatrix uses the MSVC spelling, kept here so include order can't break it
+#if !defined(_WIN32) && !defined(_copysign)
+	#define _copysign copysign
+#endif
+
 typedef unsigned int RakUInt32;
 typedef RakUInt32 BitSize_t;
 
@@ -1141,6 +1148,8 @@ namespace RakNet
 		return Read(outTemplateVar);
 	}
 
+// dead, WriteFloat16 does not exist in this raknet version and nothing calls this
+#if 0
 	template <class templateType> // templateType for this function must be a float or double
 	void BitStream::WriteNormVector(templateType x, templateType y, templateType z)
 	{
@@ -1148,10 +1157,11 @@ namespace RakNet
 		RakAssert(x <= 1.01 && y <= 1.01 && z <= 1.01 && x >= -1.01 && y >= -1.01 && z >= -1.01);
 #endif
 
-		WriteFloat16((float)x, -1.0f, 1.0f);
-		WriteFloat16((float)y, -1.0f, 1.0f);
-		WriteFloat16((float)z, -1.0f, 1.0f);
+		this->WriteFloat16((float)x, -1.0f, 1.0f);
+		this->WriteFloat16((float)y, -1.0f, 1.0f);
+		this->WriteFloat16((float)z, -1.0f, 1.0f);
 	}
+#endif
 
 	template <class templateType> // templateType for this function must be a float or double
 	void BitStream::WriteVector(templateType x, templateType y, templateType z)
@@ -1219,18 +1229,21 @@ namespace RakNet
 		WriteNormQuat(qw, qx, qy, qz);
 	}
 
+// dead, ReadFloat16 does not exist in this raknet version and nothing calls this
+#if 0
 	template <class templateType> // templateType for this function must be a float or double
 	bool BitStream::ReadNormVector(templateType& x, templateType& y, templateType& z)
 	{
 		float xIn, yIn, zIn;
-		ReadFloat16(xIn, -1.0f, 1.0f);
-		ReadFloat16(yIn, -1.0f, 1.0f);
-		ReadFloat16(zIn, -1.0f, 1.0f);
+		this->ReadFloat16(xIn, -1.0f, 1.0f);
+		this->ReadFloat16(yIn, -1.0f, 1.0f);
+		this->ReadFloat16(zIn, -1.0f, 1.0f);
 		x = xIn;
 		y = yIn;
 		z = zIn;
 		return true;
 	}
+#endif
 
 	template <class templateType> // templateType for this function must be a float or double
 	bool BitStream::ReadVector(templateType& x, templateType& y, templateType& z)
