@@ -6,6 +6,8 @@
 CDialog::CDialog(IDirect3DDevice9* pDevice)
 {
 	m_pDevice = pDevice;
+	m_iPosX = 0;
+	m_iPosY = 0;
 	m_iWidth = 600;
 	m_iHeight = 300;
 	m_iButtonWidth = 100;
@@ -79,7 +81,52 @@ bool CDialog::IsCandidateActive()
 
 void CDialog::GetRect(RECT* rect)
 {
+	rect->left = m_iPosX;
+	rect->top = m_iPosY;
+	rect->right = m_iPosX + m_iWidth;
+	rect->bottom = m_iPosY + m_iHeight;
+}
 
+//----------------------------------------------------
+
+// same two font sources the original uses, DXUT draws the frame, caption, buttons
+// and controls, pDefaultFont draws the content text
+void CDialog::UpdateFont()
+{
+	if (m_pDialog)
+		m_pDialog->UpdateFont();
+}
+
+//----------------------------------------------------
+
+void CDialog::Draw()
+{
+	if (!m_bVisible || !m_pDialog) return;
+
+	// the chat input box takes priority, the original hides the dialog behind it
+	if (pCmdWindow && pCmdWindow->isEnabled()) return;
+
+	pGame->ToggleKeyInputsDisabled(2);
+
+	m_pDialog->SetLocation(m_iPosX, m_iPosY);
+	m_pDialog->SetSize(m_iWidth, m_iHeight);
+	m_pDialog->OnRender(10.0f);
+
+	if (!m_szContent) return;
+
+	RECT rect;
+	GetRect(&rect);
+
+	if (m_iDialogStyle == DIALOG_STYLE_MSGBOX ||
+		m_iDialogStyle == DIALOG_STYLE_INPUT ||
+		m_iDialogStyle == DIALOG_STYLE_PASSWORD)
+	{
+		rect.left += 20;
+		rect.top += m_pDialog->GetCaptionHeight() + 5;
+
+		pDefaultFont->RenderSmallerText(NULL, m_szContent, rect,
+			DT_NOCLIP | DT_EXPANDTABS, 0xFFA9C4E4, true);
+	}
 }
 
 LONG CDialog::GetTextWidth(char* szText)
@@ -106,6 +153,81 @@ void CDialog::Hide()
 {
 	pGame->ToggleKeyInputsDisabled(0);
 	m_pDialog->SetVisible(false);
+	m_bVisible = false;
+}
+
+//----------------------------------------------------
+
+bool CDialog::HandleInput(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
+{
+	if (!m_bVisible || !m_pDialog) return false;
+	if (pCmdWindow && pCmdWindow->isEnabled()) return false;
+
+	if (uMsg == WM_KEYUP)
+	{
+		// return answers with the left button, escape with the right one
+		if (wParam == VK_RETURN)
+		{
+			SendResponse(true);
+			return true;
+		}
+		if (wParam == VK_ESCAPE)
+		{
+			SendResponse(false);
+			return true;
+		}
+	}
+
+	return m_pDialog->MsgProc(hwnd, uMsg, wParam, lParam) != false;
+}
+
+//----------------------------------------------------
+
+// bResponse is true for button1, false for button2 and for escape
+void CDialog::SendResponse(bool bResponse)
+{
+	if (!m_bVisible) return;
+
+	char szInputText[MAX_DIALOG_RESPONSE_TEXT + 1];
+	short sListItem = -1;
+
+	szInputText[0] = '\0';
+
+	if (m_iDialogStyle == DIALOG_STYLE_LIST ||
+		m_iDialogStyle == DIALOG_STYLE_TABLIST ||
+		m_iDialogStyle == DIALOG_STYLE_TABLIST_HEADERS)
+	{
+		sListItem = (short)m_pListBox->GetSelectedIndex(-1);
+
+		DXUTListBoxItem* pItem = m_pListBox->GetItem(sListItem);
+		if (pItem)
+		{
+			strncpy_s(szInputText, pItem->strText, MAX_DIALOG_RESPONSE_TEXT);
+			RemoveColorEmbedsFromString(szInputText);
+		}
+	}
+	else if (m_iDialogStyle == DIALOG_STYLE_INPUT ||
+			 m_iDialogStyle == DIALOG_STYLE_PASSWORD)
+	{
+		strncpy_s(szInputText, m_pEditBox->GetText(), MAX_DIALOG_RESPONSE_TEXT);
+	}
+
+	if (m_bSendResponse && pNetGame)
+	{
+		RakNet::BitStream bsSend;
+		BYTE byteTextLen = (BYTE)strlen(szInputText);
+
+		bsSend.Write((WORD)m_iDialogID);
+		bsSend.Write((BYTE)(bResponse ? 1 : 0));
+		bsSend.Write((WORD)sListItem);
+		bsSend.Write(byteTextLen);
+		if (byteTextLen)
+			bsSend.Write(szInputText, byteTextLen);
+
+		pNetGame->Send(RPC_ScrDialogResponse, &bsSend);
+	}
+
+	Hide();
 }
 
 void CDialog::Show(int iID, int iStyle, char* szCaption,
@@ -193,6 +315,20 @@ void CDialog::Show(int iID, int iStyle, char* szCaption,
 			pButton->SetVisible(false);
 		}
 
+		// centre it now the style has settled on a size
+		m_iPosX = (pGame->GetScreenWidth() - m_iWidth) / 2;
+		m_iPosY = (pGame->GetScreenHeight() - m_iHeight) / 2;
+		if (m_iPosX < 0) m_iPosX = 0;
+		if (m_iPosY < 0) m_iPosY = 0;
+
+		m_pDialog->SetLocation(m_iPosX, m_iPosY);
+		m_pDialog->SetSize(m_iWidth, m_iHeight);
+
+		// buttons sit on the bottom edge, the caption is drawn above the frame
+		m_pDialog->GetButton(IDC_DLGBUTTON1)->SetLocation(10, m_iHeight - m_iButtonHeight - 10);
+		m_pDialog->GetButton(IDC_DLGBUTTON2)->SetLocation(10 + m_iButtonWidth + 10,
+			m_iHeight - m_iButtonHeight - 10);
+
 		m_pDialog->SetVisible(true);
 
 		switch (m_iDialogStyle)
@@ -220,5 +356,15 @@ void CDialog::Show(int iID, int iStyle, char* szCaption,
 void CALLBACK CDialog::OnEvent(UINT nEvent, int nControlID,
 	CDXUTControl* pControl, void* pUserContext)
 {
+	if (!pDialog) return;
 
+	switch (nControlID)
+	{
+	case IDC_DLGBUTTON1:
+		pDialog->SendResponse(true);
+		break;
+	case IDC_DLGBUTTON2:
+		pDialog->SendResponse(false);
+		break;
+	}
 }

@@ -1926,6 +1926,54 @@ static void ScrClearActorAnimation(RPCParameters* rpcParams)
 
 //----------------------------------------------------
 
+static void ScrShowDialog(RPCParameters* rpcParams)
+{
+	if (!pDialog) return;
+
+	RakNet::BitStream bsData(rpcParams);
+
+	WORD wDialogID = INVALID_DIALOG_ID;
+	BYTE byteStyle = 0;
+	BYTE byteLen = 0;
+
+	char szCaption[256 + 1];
+	char szButton1[256 + 1];
+	char szButton2[256 + 1];
+	char szInfo[MAX_DIALOG_INFO];
+
+	if (!bsData.Read(wDialogID)) return;
+
+	// the server sends this id on its own to close whatever is open
+	if (wDialogID == INVALID_DIALOG_ID)
+	{
+		if (pDialog->IsVisible()) pDialog->Hide();
+		return;
+	}
+
+	if (!bsData.Read(byteStyle)) return;
+
+	if (!bsData.Read(byteLen)) return;
+	if (byteLen && !bsData.Read(szCaption, byteLen)) return;
+	szCaption[byteLen] = '\0';
+
+	if (!bsData.Read(byteLen)) return;
+	if (byteLen && !bsData.Read(szButton1, byteLen)) return;
+	szButton1[byteLen] = '\0';
+
+	if (!bsData.Read(byteLen)) return;
+	if (byteLen && !bsData.Read(szButton2, byteLen)) return;
+	szButton2[byteLen] = '\0';
+
+	if (!stringCompressor->DecodeString(szInfo, sizeof(szInfo), &bsData)) return;
+
+	// the original drops the packet unless both of these carry something
+	if (szCaption[0] == '\0' || szInfo[0] == '\0') return;
+
+	pDialog->Show(wDialogID, byteStyle, szCaption, szInfo, szButton1, szButton2, true);
+}
+
+//----------------------------------------------------
+
 static void ScrClickTextDraw(RPCParameters* rpcParams)
 {
 	if (!pTextDrawSelect)
@@ -2057,6 +2105,7 @@ void RegisterScriptRPCs(RakClientInterface* pRakClient)
 	REGISTER_STATIC_RPC(pRakClient, ScrClearActorAnimation);
 	REGISTER_STATIC_RPC(pRakClient, ScrDisableVehicleCollision);
 	REGISTER_STATIC_RPC(pRakClient, ScrClickTextDraw);
+	REGISTER_STATIC_RPC(pRakClient, ScrShowDialog);
 }
 
 //----------------------------------------------------

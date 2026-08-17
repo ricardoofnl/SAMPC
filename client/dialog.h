@@ -16,6 +16,8 @@ class CDialog
 {
 private:
 	IDirect3DDevice9* m_pDevice;
+	int m_iPosX;
+	int m_iPosY;
 	int m_iWidth;
 	int m_iHeight;
 	int m_iButtonWidth;
@@ -36,12 +38,18 @@ public:
 
 	void ResetDialogControls();
 	bool MsgProc(UINT uMsg, WPARAM wParam, LPARAM lParam);
+	bool HandleInput(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
 	bool IsCandidateActive();
 	void GetRect(RECT* rect);
 	LONG GetTextWidth(char* szText);
 	LONG GetFontHeight();
 	void Show(int iID, int iStyle, char* szCaption, char* szContent, char* szButton1, char* szButton2, bool bSendResponse);
 	void Hide();
+	void Draw();
+	void UpdateFont();
+	void SendResponse(bool bResponse);
+
+	bool IsVisible() { return m_bVisible; };
 
 	static void CALLBACK OnEvent(UINT nEvent, int nControlID,
 		CDXUTControl* pControl, void* pUserContext);
