@@ -1436,14 +1436,6 @@ static void ScrSetVehicle(RPCParameters* rpcParams)
 					pVehicle->ToggleTaxiLight(in.ReadBit());
 					break;
 				}
-				case 4: {
-					pVehicle->ToggleEngine(in.ReadBit());
-					break;
-				}
-				case 5: {
-					pVehicle->SetLightState(in.ReadBit());
-					break;
-				}
 				case 6: {
 					pVehicle->SetFeature(in.ReadBit());
 					break;

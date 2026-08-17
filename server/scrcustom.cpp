@@ -1743,16 +1743,16 @@ static cell n_SetVehicleEngineState(AMX* amx, cell* params)
 	CHECK_PARAMS(amx, "SetVehicleEngineState", 2);
 
 	CVehiclePool* pVehiclePool = pNetGame->GetVehiclePool();
-	if (pVehiclePool && pVehiclePool->GetSlotState(params[1]))
+	if (pVehiclePool)
 	{
-		RakNet::BitStream out;
+		CVehicle* pVehicle = pVehiclePool->GetAt(params[1]);
+		if (pVehicle != nullptr)
+		{
+			pVehicle->m_Params.byteEngine = ParamFromCell(params[2]);
 
-		out.Write<unsigned char>(4);
-		out.Write((VEHICLEID)params[1]); // vehicleid
-		out.Write((params[2]) ? true : false); // toggle
-
-		return (cell)pNetGame->GetRakServer()->RPC(RPC_ScrSetVehicle, &out, HIGH_PRIORITY,
-			RELIABLE, 0, UNASSIGNED_PLAYER_ID, true, false);
+			pVehicle->SendParams();
+			return 1;
+		}
 	}
 	return 0;
 }
@@ -2429,14 +2429,14 @@ static cell n_SetVehicleLightState(AMX* amx, cell* params)
 {
 	CHECK_PARAMS(amx, "SetVehicleLightState", 2);
 	CVehiclePool* pPool = pNetGame->GetVehiclePool();
-	if (pPool && pPool->GetSlotState(params[1])) {
-		RakNet::BitStream out;
+	if (pPool) {
+		CVehicle* pVehicle = pPool->GetAt(params[1]);
+		if (pVehicle != nullptr) {
+			pVehicle->m_Params.byteLights = ParamFromCell(params[2]);
 
-		out.Write<unsigned char>(5);
-		out.Write((VEHICLEID)params[1]);
-		out.Write((params[2] != 0) ? true : false);
-
-		return pNetGame->GetRakServer()->RPC(RPC_ScrSetVehicle, &out, HIGH_PRIORITY, RELIABLE, 0, UNASSIGNED_PLAYER_ID, true, false);
+			pVehicle->SendParams();
+			return 1;
+		}
 	}
 	return 0;
 }
