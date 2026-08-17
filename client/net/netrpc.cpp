@@ -100,8 +100,9 @@ void InitGame(RPCParameters *rpcParams)
 	bsInitGame.Read(pNetGame->m_fGlobalMarkerRadius);
 	bsInitGame.Read(bStuntBonus);
 	bsInitGame.Read(pNetGame->m_fNameTagDrawDistance);
-	bsInitGame.Read(pNetGame->m_bManualEngineAndLights);
+	// order matches CNetGame::InitGameForPlayer, these two used to be swapped
 	bsInitGame.Read(pNetGame->m_bDisableEnterExits);
+	bsInitGame.Read(pNetGame->m_bManualEngineAndLights);
 	bsInitGame.Read(pNetGame->m_bDisableVehMapIcons);
 	bsInitGame.Read(pNetGame->m_bNameTagLOS);
 	bsInitGame.Read(sOnFootRate);
