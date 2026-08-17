@@ -8,6 +8,9 @@
 // dxut draws the caption above the client area, so control coordinates start
 // right under it and only need a small margin
 #define DIALOG_CONTENT_MARGIN 8
+#define DIALOG_SIDE_MARGIN    12
+// vertical gap between the content block, the control under it and the buttons
+#define DIALOG_ROW_GAP        10
 
 // sizes measured off the original 0.3.7-R5 dialog
 #define DIALOG_BUTTON_WIDTH  96

@@ -183,18 +183,24 @@ void CDialog::Draw()
 
 	if (!m_szContent) return;
 
-	RECT rect;
-	GetRect(&rect);
+	// minimised leaves only the caption bar on screen, the body text is not part
+	// of the dxut dialog so it has to be dropped here or it floats on its own
+	if (m_pDialog->GetMinimized()) return;
 
 	if (m_iDialogStyle == DIALOG_STYLE_MSGBOX ||
 		m_iDialogStyle == DIALOG_STYLE_INPUT ||
 		m_iDialogStyle == DIALOG_STYLE_PASSWORD)
 	{
-		rect.left += 20;
+		RECT rect;
+		GetRect(&rect);
+
+		rect.left += DIALOG_SIDE_MARGIN;
+		rect.right -= DIALOG_SIDE_MARGIN;
 		rect.top += DIALOG_CONTENT_MARGIN;
+		rect.bottom = rect.top + m_ContentSize.cy;
 
 		pDefaultFont->RenderSmallerText(NULL, m_szContent, rect,
-			DT_NOCLIP | DT_EXPANDTABS, DLG_COL_CONTENT, true);
+			DT_EXPANDTABS, DLG_COL_CONTENT, true);
 	}
 }
 
@@ -263,7 +269,14 @@ void CDialog::SetupList(char* szContent, SIZE* pSize)
 			if (lWidth > iMaxWidth) iMaxWidth = (int)lWidth;
 
 			iTotalHeight += GetFontHeight();
-			m_pListBox->AddItem(szLine, iIndex++, (D3DCOLOR)-1);
+			m_pListBox->AddItem(szLine, iIndex, (D3DCOLOR)-1);
+
+			// CDXUTListBox::Render draws the selection sprite unless the item is
+			// forced unselected, so without this every row comes out highlighted
+			DXUTListBoxItem* pItem = m_pListBox->GetItem(iIndex);
+			if (pItem) pItem->bForceUnselected = true;
+
+			iIndex++;
 		}
 
 		if (!*pText) break;
@@ -404,33 +417,38 @@ void CDialog::Show(int iID, int iStyle, char* szCaption,
 		m_pListBox->SetVisible(false);
 		m_pListBox->SetEnabled(false);
 
-		int iEditHeight = DIALOG_EDIT_HEIGHT;
-		int iContentTop = DIALOG_CONTENT_MARGIN + m_ContentSize.cy;
+		// everything stacks from the top margin down, so a row can never land on
+		// top of the one before it
+		int iRowTop = DIALOG_CONTENT_MARGIN;
+		int iEditTop = 0;
+		int iListTop = 0;
+		int iListHeight = 0;
 
 		switch (m_iDialogStyle)
 		{
 		case DIALOG_STYLE_MSGBOX:
 		{
-			m_iWidth = m_ContentSize.cx + 40;
+			m_iWidth = m_ContentSize.cx + (2 * DIALOG_SIDE_MARGIN);
 			if (m_iWidth < DIALOG_MIN_WIDTH) m_iWidth = DIALOG_MIN_WIDTH;
 
-			m_iHeight = DIALOG_CONTENT_MARGIN + m_ContentSize.cy + m_iButtonHeight + 30;
+			iRowTop += m_ContentSize.cy;
 			break;
 		}
 		case DIALOG_STYLE_INPUT:
 		case DIALOG_STYLE_PASSWORD:
 		{
-			m_iWidth = m_ContentSize.cx + 40;
+			m_iWidth = m_ContentSize.cx + (2 * DIALOG_SIDE_MARGIN);
 			if (m_iWidth < DIALOG_MIN_WIDTH) m_iWidth = DIALOG_MIN_WIDTH;
 
-			m_iHeight = DIALOG_CONTENT_MARGIN + m_ContentSize.cy + iEditHeight +
-						m_iButtonHeight + 30;
+			iRowTop += m_ContentSize.cy + DIALOG_ROW_GAP;
 
-			m_pEditBox->SetLocation(10, iContentTop);
-			m_pEditBox->SetSize(m_iWidth - 20, iEditHeight);
+			iEditTop = iRowTop;
+
 			m_pEditBox->SetText("");
 			m_pEditBox->SetVisible(true);
 			m_pEditBox->SetEnabled(true);
+
+			iRowTop += DIALOG_EDIT_HEIGHT;
 			break;
 		}
 		case DIALOG_STYLE_LIST:
@@ -440,24 +458,45 @@ void CDialog::Show(int iID, int iStyle, char* szCaption,
 			SIZE listSize;
 			SetupList(m_szContent, &listSize);
 
-			m_iWidth = listSize.cx + 40;
-			if (m_iWidth < 400) m_iWidth = 400;
-			if (m_iWidth > 800) m_iWidth = 800;
+			m_iWidth = listSize.cx + (2 * DIALOG_SIDE_MARGIN);
 			if (m_iWidth < DIALOG_MIN_WIDTH) m_iWidth = DIALOG_MIN_WIDTH;
+			if (m_iWidth > 800) m_iWidth = 800;
 
-			int iListHeight = listSize.cy + (2 * (int)GetFontHeight());
-			if (iListHeight < 200) iListHeight = 200;
+			iListHeight = listSize.cy + (2 * (int)GetFontHeight());
+			if (iListHeight < 120) iListHeight = 120;
 			if (iListHeight > 400) iListHeight = 400;
 
-			// content margin, list, gap, buttons, bottom margin
-			m_iHeight = DIALOG_CONTENT_MARGIN + iListHeight + m_iButtonHeight + 30;
+			iListTop = iRowTop;
 
-			m_pListBox->SetLocation(5, DIALOG_CONTENT_MARGIN);
-			m_pListBox->SetSize(m_iWidth - 10, iListHeight);
 			m_pListBox->SetVisible(true);
 			m_pListBox->SetEnabled(true);
+
+			iRowTop += iListHeight;
 			break;
 		}
+		}
+
+		// the button row closes the box
+		int iButtonTop = iRowTop + DIALOG_ROW_GAP;
+		m_iHeight = iButtonTop + m_iButtonHeight + DIALOG_CONTENT_MARGIN;
+
+		// two buttons plus the gap between them have to fit
+		int iButtonRowWidth = (2 * m_iButtonWidth) + DIALOG_ROW_GAP + (2 * DIALOG_SIDE_MARGIN);
+		if (m_iWidth < iButtonRowWidth)
+			m_iWidth = iButtonRowWidth;
+
+		// the final width is only known here, so the controls get placed now
+		int iInnerWidth = m_iWidth - (2 * DIALOG_SIDE_MARGIN);
+
+		if (iEditTop)
+		{
+			m_pEditBox->SetLocation(DIALOG_SIDE_MARGIN, iEditTop);
+			m_pEditBox->SetSize(iInnerWidth, DIALOG_EDIT_HEIGHT);
+		}
+		if (iListHeight)
+		{
+			m_pListBox->SetLocation(DIALOG_SIDE_MARGIN, iListTop);
+			m_pListBox->SetSize(iInnerWidth, iListHeight);
 		}
 
 		CDXUTButton* pButton1 = m_pDialog->GetButton(IDC_DLGBUTTON1);
@@ -488,11 +527,12 @@ void CDialog::Show(int iID, int iStyle, char* szCaption,
 		m_pDialog->SetLocation(m_iPosX, m_iPosY);
 		m_pDialog->SetSize(m_iWidth, m_iHeight);
 
-		// buttons sit on the bottom edge, the caption is drawn above the frame
+		// the buttons take the row the stack left for them
 		if (pButton1)
-			pButton1->SetLocation(10, m_iHeight - m_iButtonHeight - 10);
+			pButton1->SetLocation(DIALOG_SIDE_MARGIN, iButtonTop);
 		if (pButton)
-			pButton->SetLocation(10 + m_iButtonWidth + 10, m_iHeight - m_iButtonHeight - 10);
+			pButton->SetLocation(DIALOG_SIDE_MARGIN + m_iButtonWidth + DIALOG_ROW_GAP,
+				iButtonTop);
 
 		m_pDialog->SetVisible(true);
 
