@@ -34,8 +34,6 @@ public:
 	bool				m_bIsActive[MAX_VEHICLES];
 	bool				m_bIsWasted[MAX_VEHICLES];
 	VEHICLE_SPAWN_INFO	m_SpawnInfo[MAX_VEHICLES];
-	VEHICLE_OPEN_CLOSE_FLAG m_Windows[MAX_VEHICLES];
-	VEHICLE_OPEN_CLOSE_FLAG m_Doors[MAX_VEHICLES];
 	VEHICLE_PARAMS		m_Params[MAX_VEHICLES];
 
 	int					m_iRespawnDelay[MAX_VEHICLES];

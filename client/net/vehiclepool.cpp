@@ -19,8 +19,6 @@ CVehiclePool::CVehiclePool()
 		m_bVehicleSlotState[VehicleID] = false;
 		m_pVehicles[VehicleID] = NULL;
 		m_iVirtualWorld[VehicleID] = 0;
-		m_Windows[VehicleID] = { 1,1,1,1 };
-		m_Doors[VehicleID] = { 0,0,0,0 };
 		m_bHasSiren[VehicleID] = false;
 		ResetParams(VehicleID);
 	}
@@ -72,8 +70,6 @@ bool CVehiclePool::New( VEHICLEID VehicleID, int iVehicleType,
 	m_iVirtualWorld[VehicleID] = 0;
 
 	// New vehicle added, resetting values...
-	m_Windows[VehicleID] = { 1,1,1,1 };
-	m_Doors[VehicleID] = { 0,0,0,0 };
 	ResetParams(VehicleID);
 
 	// Now go ahead and spawn it at the location we got passed.
@@ -177,22 +173,6 @@ bool CVehiclePool::Spawn( VEHICLEID VehicleID, int iVehicleType,
 		{
 			LinkToInterior(VehicleID, iInterior);
 		}
-
-		// TODO: Need checking at and add model filtering here and/or server
-		// Seems like it works on most of the vehicles, but on some vehicles it crashes the game,
-		// with gta_sa.exe:0x6D30B5 crash address. ecx at [ecx+18h] looks like not initialized.
-		if (m_pVehicles[VehicleID]->GetVehicleSubtype() == VEHICLE_SUBTYPE_CAR) {
-			m_pVehicles[VehicleID]->ToggleWindow(10, m_Windows[VehicleID].bDriver);
-			m_pVehicles[VehicleID]->ToggleWindow(8, m_Windows[VehicleID].bPassenger);
-			m_pVehicles[VehicleID]->ToggleWindow(11, m_Windows[VehicleID].bBackLeft);
-			m_pVehicles[VehicleID]->ToggleWindow(9, m_Windows[VehicleID].bBackRight);
-		}
-
-		// Wiki: 1 to open, 0 to close
-		m_pVehicles[VehicleID]->ToggleDoor(2, 10, m_Doors[VehicleID].bDriver ? 1.0f : 0.0f);
-		m_pVehicles[VehicleID]->ToggleDoor(3, 8, m_Doors[VehicleID].bPassenger ? 1.0f : 0.0f);
-		m_pVehicles[VehicleID]->ToggleDoor(4, 11, m_Doors[VehicleID].bBackLeft ? 1.0f : 0.0f);
-		m_pVehicles[VehicleID]->ToggleDoor(5, 9, m_Doors[VehicleID].bBackRight ? 1.0f : 0.0f);
 
 		// the game vehicle is brand new here, so whatever the server told us before is gone
 		ApplyParams(VehicleID);

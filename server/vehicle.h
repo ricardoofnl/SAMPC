@@ -56,8 +56,6 @@ public:
 	DWORD					m_dwLastRespawnedTick;
 	int						m_iVirtualWorld;
 	bool					m_bHasSiren;
-	VEHICLE_OPEN_CLOSE_FLAG m_Windows;
-	VEHICLE_OPEN_CLOSE_FLAG m_Doors;
 	VEHICLE_PARAMS m_Params;
 
 	int m_iPanelDamageStatus;
