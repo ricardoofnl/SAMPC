@@ -134,9 +134,11 @@ LONG CDialog::GetTextWidth(char* szText)
 	ID3DXFont* pFont = m_pDialog->GetFont(1)->pFont;
 	if (szText && szText[0] != 0 && pFont)
 	{
-		char szBuffer[128];
+		char szBuffer[256];
 		RECT rect;
-		strcpy_s(szBuffer, szText);
+		// a list line can be longer than this, and an overflowing strcpy_s kills
+		// the process through the invalid parameter handler
+		strncpy_s(szBuffer, szText, _TRUNCATE);
 		RemoveColorEmbedsFromString(szBuffer);
 		pFont->DrawTextA(0, szBuffer, -1, &rect, DT_EXPANDTABS | DT_NOCLIP | DT_CALCRECT, -1);
 		return rect.right - rect.left;
@@ -259,14 +261,14 @@ void CDialog::SendResponse(bool bResponse)
 		DXUTListBoxItem* pItem = m_pListBox->GetItem(sListItem);
 		if (pItem)
 		{
-			strncpy_s(szInputText, pItem->strText, MAX_DIALOG_RESPONSE_TEXT);
+			strncpy_s(szInputText, pItem->strText, _TRUNCATE);
 			RemoveColorEmbedsFromString(szInputText);
 		}
 	}
 	else if (m_iDialogStyle == DIALOG_STYLE_INPUT ||
 			 m_iDialogStyle == DIALOG_STYLE_PASSWORD)
 	{
-		strncpy_s(szInputText, m_pEditBox->GetText(), MAX_DIALOG_RESPONSE_TEXT);
+		strncpy_s(szInputText, m_pEditBox->GetText(), _TRUNCATE);
 	}
 
 	if (m_bSendResponse && pNetGame)
@@ -292,6 +294,8 @@ void CDialog::Show(int iID, int iStyle, char* szCaption,
 {
 	SIZE size;
 
+	if (!m_pDialog || !m_pListBox || !m_pEditBox || !pDefaultFont) return;
+
 	if (iID >= 0)
 	{
 		if (pCmdWindow && pCmdWindow->isEnabled())
@@ -302,13 +306,16 @@ void CDialog::Show(int iID, int iStyle, char* szCaption,
 		m_bSendResponse = bSendResponse;
 
 		SecureZeroMemory(m_szCaption, sizeof(m_szCaption));
-		strncpy_s(m_szCaption, szCaption, 64);
+		strncpy_s(m_szCaption, szCaption, _TRUNCATE);
 
 		if (m_szContent)
 			free(m_szContent);
 		DWORD dwLen = strlen(szContent);
 		m_szContent = (char*)calloc(1, dwLen + 64);
-		strcpy_s(m_szContent, dwLen, szContent);
+		if (!m_szContent) return;
+		// the size argument is the buffer, not the string, dwLen alone is one short
+		// and strcpy_s answers that by terminating the process
+		strcpy_s(m_szContent, dwLen + 64, szContent);
 
 		pDefaultFont->MeasureSmallerText(&m_ContentSize, m_szContent, DT_EXPANDTABS);
 
@@ -382,18 +389,23 @@ void CDialog::Show(int iID, int iStyle, char* szCaption,
 			break;
 		}
 
-		m_pDialog->GetButton(IDC_DLGBUTTON1)->SetText(szButton1);
+		CDXUTButton* pButton1 = m_pDialog->GetButton(IDC_DLGBUTTON1);
+		if (pButton1)
+			pButton1->SetText(szButton1);
 
 		CDXUTButton* pButton = m_pDialog->GetButton(IDC_DLGBUTTON2);
-		if (szButton2[0] != '\0')
+		if (pButton)
 		{
-			pButton->SetText(szButton2);
-			pButton->SetVisible(true);
-		}
-		else
-		{
-			pButton->SetText("");
-			pButton->SetVisible(false);
+			if (szButton2[0] != '\0')
+			{
+				pButton->SetText(szButton2);
+				pButton->SetVisible(true);
+			}
+			else
+			{
+				pButton->SetText("");
+				pButton->SetVisible(false);
+			}
 		}
 
 		// centre it now the style has settled on a size
@@ -406,9 +418,10 @@ void CDialog::Show(int iID, int iStyle, char* szCaption,
 		m_pDialog->SetSize(m_iWidth, m_iHeight);
 
 		// buttons sit on the bottom edge, the caption is drawn above the frame
-		m_pDialog->GetButton(IDC_DLGBUTTON1)->SetLocation(10, m_iHeight - m_iButtonHeight - 10);
-		m_pDialog->GetButton(IDC_DLGBUTTON2)->SetLocation(10 + m_iButtonWidth + 10,
-			m_iHeight - m_iButtonHeight - 10);
+		if (pButton1)
+			pButton1->SetLocation(10, m_iHeight - m_iButtonHeight - 10);
+		if (pButton)
+			pButton->SetLocation(10 + m_iButtonWidth + 10, m_iHeight - m_iButtonHeight - 10);
 
 		m_pDialog->SetVisible(true);
 
