@@ -1246,6 +1246,27 @@ DWORD _dwBlendAnimDelta;
 float fBlendAnimDeltaSaved;
 DWORD _dwBlendAnimRetJmp = 0x4D4617;
 
+// out of line because a naked function has no frame, and anything msvc wants a
+// frame slot for writes through whatever ebp the game happened to leave behind
+static __declspec(noinline) void BlendAnimation_SaveState()
+{
+	_pAnimPed = GamePool_FindPlayerPed();
+	if (_pAnimPed)
+		_dwAninmPedRW = (DWORD)_pAnimPed->entity.pdwRenderWare;
+	else
+		_dwAninmPedRW = 0;
+
+	if (_dwAnimRW == _dwAninmPedRW &&
+		(_dwAnimID1 || _dwAnimID2 != 160))
+	{
+		dwAnimID1Saved = _dwAnimID1;
+		dwAnimID2Saved = _dwAnimID2;
+		// CAnimManager::BlendAnimation takes the delta as a float, so copy the bits
+		// instead of converting the integer they were captured into
+		fBlendAnimDeltaSaved = *(float *)&_dwBlendAnimDelta;
+	}
+}
+
 NUDE BlendAnimation_Hook()
 {
 	//_asm mov edx, [esp]
@@ -1260,20 +1281,7 @@ NUDE BlendAnimation_Hook()
 	_asm mov _dwBlendAnimDelta, edx
 	_asm pushad
 
-	_pAnimPed = GamePool_FindPlayerPed();
-	if (_pAnimPed)
-		_dwAninmPedRW = (DWORD)_pAnimPed->entity.pdwRenderWare;
-	else
-		_dwAninmPedRW = 0;
-
-	if (_dwAnimRW == _dwAninmPedRW &&
-		(_dwAnimID1 || _dwAnimID2 != 160))
-	{
-		//dword_1018F4EC = 2; // unused?
-		dwAnimID1Saved = _dwAnimID1;
-		dwAnimID2Saved = _dwAnimID2;
-		fBlendAnimDeltaSaved = (float)_dwBlendAnimDelta;
-	}
+	BlendAnimation_SaveState();
 
 	_asm popad
 	_asm sub esp, 20
