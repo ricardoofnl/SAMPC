@@ -68,22 +68,14 @@ CVehicle::CVehicle( int iModel, VECTOR *vecPos, float fRotation, int iColor1,
 	m_bDead = false;
 	bOldSirenState = false; // disabled
 
-	m_Params.byteAlarm = VEHICLE_PARAMS_UNSET;
-	m_Params.byteBonnet = VEHICLE_PARAMS_UNSET;
-	m_Params.byteBoot = VEHICLE_PARAMS_UNSET;
-	m_Params.byteDoors = VEHICLE_PARAMS_UNSET;
-	m_Params.byteEngine = VEHICLE_PARAMS_UNSET;
-	m_Params.byteLights = VEHICLE_PARAMS_UNSET;
-	m_Params.byteObjective = VEHICLE_PARAMS_UNSET;
-	m_Params.byteSiren = VEHICLE_PARAMS_UNSET;
-	m_Params.byteDriverDoor = VEHICLE_PARAMS_UNSET;
-	m_Params.bytePassengerDoor = VEHICLE_PARAMS_UNSET;
-	m_Params.byteBackLeftDoor = VEHICLE_PARAMS_UNSET;
-	m_Params.byteBackRightDoor = VEHICLE_PARAMS_UNSET;
-	m_Params.byteDriverWindow = VEHICLE_PARAMS_UNSET;
-	m_Params.bytePassengerWindow = VEHICLE_PARAMS_UNSET;
-	m_Params.byteBackLeftWindow = VEHICLE_PARAMS_UNSET;
-	m_Params.byteBackRightWindow = VEHICLE_PARAMS_UNSET;
+	ResetParams();
+}
+
+//----------------------------------------------------------
+
+void CVehicle::ResetParams()
+{
+	memset(&m_Params, VEHICLE_PARAMS_UNSET, sizeof(VEHICLE_PARAMS));
 }
 
 //----------------------------------------------------
@@ -316,10 +308,13 @@ void CVehicle::Respawn()
 	m_matWorld.pos.X = m_SpawnInfo.vecPos.X;
 	m_matWorld.pos.Y = m_SpawnInfo.vecPos.Y;
 	m_matWorld.pos.Z = m_SpawnInfo.vecPos.Z;
-				
+
+	// the client rebuilds the game vehicle from scratch, so the params go with it
+	ResetParams();
+
 	RakNet::BitStream bsVehicle;
 	bsVehicle.Write(m_VehicleID);
-	pRak->RPC(RPC_ScrRespawnVehicle , &bsVehicle, HIGH_PRIORITY, 
+	pRak->RPC(RPC_ScrRespawnVehicle , &bsVehicle, HIGH_PRIORITY,
 		RELIABLE, 0, UNASSIGNED_PLAYER_ID, true, false);
 	
 	m_bDead = false;

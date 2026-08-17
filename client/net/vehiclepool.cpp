@@ -594,6 +594,9 @@ void CVehiclePool::SetForRespawn(VEHICLEID VehicleID, int iRespawnDelay)
 		m_bIsActive[VehicleID] = false;
 		m_bIsWasted[VehicleID] = true;
 		m_iRespawnDelay[VehicleID] = iRespawnDelay;
+
+		// the server drops them too, a respawned vehicle starts from a clean state
+		ResetParams(VehicleID);
 	}
 }
 
