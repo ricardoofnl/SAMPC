@@ -11,6 +11,7 @@
 #define DIALOG_SIDE_MARGIN    12
 // vertical gap between the content block, the control under it and the buttons
 #define DIALOG_ROW_GAP        10
+#define DIALOG_CORNER_RADIUS  8
 
 // sizes measured off the original 0.3.7-R5 dialog
 #define DIALOG_BUTTON_WIDTH  96
@@ -70,6 +71,7 @@ public:
 	void Show(int iID, int iStyle, char* szCaption, char* szContent, char* szButton1, char* szButton2, bool bSendResponse);
 	void Hide();
 	void Draw();
+	void DrawRoundedPanel(RECT* pRect, int iCaptionHeight);
 	void UpdateFont();
 	void SendResponse(bool bResponse);
 

@@ -91,10 +91,15 @@ void CDialog::StyleControls()
 {
 	if (!m_pDialog) return;
 
-	m_pDialog->SetBackgroundColors(DLG_COL_PANEL);
+	// the square quad is left fully transparent, DrawRoundedPanel puts down the
+	// rounded one instead
+	m_pDialog->SetBackgroundColors(D3DCOLOR_ARGB(0, 0, 0, 0));
 
+	// likewise the caption strip is part of the rounded panel now, only its text
+	// still comes from dxut
 	TintElement(m_pDialog->GetCaptionElement(),
-		DLG_COL_HEADER, DLG_COL_HEADER, DLG_COL_HEADER, DLG_COL_TEXT);
+		D3DCOLOR_ARGB(0, 0, 0, 0), D3DCOLOR_ARGB(0, 0, 0, 0), D3DCOLOR_ARGB(0, 0, 0, 0),
+		DLG_COL_TEXT);
 
 	// element 0 is the button face, element 1 the fill layer that lights up
 	for (int i = IDC_DLGBUTTON1; i <= IDC_DLGBUTTON2; i++)
@@ -168,6 +173,95 @@ void CDialog::UpdateFont()
 
 //----------------------------------------------------
 
+// a triangle fan with the four corners cut into arcs, drawn in place of the square
+// quad CDXUTDialog would otherwise put down
+void CDialog::DrawRoundedPanel(RECT* pRect, int iCaptionHeight)
+{
+	if (!m_pDevice) return;
+
+	struct PANEL_VERTEX
+	{
+		float x, y, z, h;
+		D3DCOLOR color;
+	};
+
+	const int iCornerSteps = 6;
+	const float fRadius = (float)DIALOG_CORNER_RADIUS;
+
+	// centre first, then the outline, then back to the start to close the fan
+	PANEL_VERTEX vertices[(4 * (iCornerSteps + 1)) + 2];
+	int iVertex = 0;
+
+	float fLeft = (float)pRect->left;
+	float fTop = (float)pRect->top;
+	float fRight = (float)pRect->right;
+	float fBottom = (float)pRect->bottom;
+
+	vertices[iVertex].x = (fLeft + fRight) * 0.5f;
+	vertices[iVertex].y = (fTop + fBottom) * 0.5f;
+	vertices[iVertex].z = 0.5f;
+	vertices[iVertex].h = 1.0f;
+	vertices[iVertex].color = DLG_COL_PANEL;
+	iVertex++;
+
+	// corner centres, clockwise from the top left, with the arc sweep for each
+	const float fCornerX[4] = { fLeft + fRadius, fRight - fRadius, fRight - fRadius, fLeft + fRadius };
+	const float fCornerY[4] = { fTop + fRadius, fTop + fRadius, fBottom - fRadius, fBottom - fRadius };
+	const float fStart[4] = { 180.0f, 270.0f, 0.0f, 90.0f };
+
+	for (int iCorner = 0; iCorner < 4; iCorner++)
+	{
+		for (int iStep = 0; iStep <= iCornerSteps; iStep++)
+		{
+			float fAngle = (fStart[iCorner] + (90.0f * iStep / iCornerSteps)) * 0.01745329f;
+
+			vertices[iVertex].x = fCornerX[iCorner] + (cosf(fAngle) * fRadius);
+			vertices[iVertex].y = fCornerY[iCorner] + (sinf(fAngle) * fRadius);
+			vertices[iVertex].z = 0.5f;
+			vertices[iVertex].h = 1.0f;
+			// the caption strip sits at the top, so tint those rows brighter
+			vertices[iVertex].color =
+				(vertices[iVertex].y < (fTop + (float)iCaptionHeight)) ? DLG_COL_HEADER : DLG_COL_PANEL;
+			iVertex++;
+		}
+	}
+
+	vertices[iVertex] = vertices[1];
+	iVertex++;
+
+	DWORD dwOldFVF, dwOldZ, dwOldAlpha, dwOldSrc, dwOldDst, dwOldCull, dwOldLight;
+	m_pDevice->GetFVF(&dwOldFVF);
+	m_pDevice->GetRenderState(D3DRS_ZENABLE, &dwOldZ);
+	m_pDevice->GetRenderState(D3DRS_ALPHABLENDENABLE, &dwOldAlpha);
+	m_pDevice->GetRenderState(D3DRS_SRCBLEND, &dwOldSrc);
+	m_pDevice->GetRenderState(D3DRS_DESTBLEND, &dwOldDst);
+	m_pDevice->GetRenderState(D3DRS_CULLMODE, &dwOldCull);
+	m_pDevice->GetRenderState(D3DRS_LIGHTING, &dwOldLight);
+
+	m_pDevice->SetTexture(0, NULL);
+	m_pDevice->SetPixelShader(NULL);
+	m_pDevice->SetVertexShader(NULL);
+	m_pDevice->SetFVF(D3DFVF_XYZRHW | D3DFVF_DIFFUSE);
+	m_pDevice->SetRenderState(D3DRS_ZENABLE, FALSE);
+	m_pDevice->SetRenderState(D3DRS_LIGHTING, FALSE);
+	m_pDevice->SetRenderState(D3DRS_CULLMODE, D3DCULL_NONE);
+	m_pDevice->SetRenderState(D3DRS_ALPHABLENDENABLE, TRUE);
+	m_pDevice->SetRenderState(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA);
+	m_pDevice->SetRenderState(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA);
+
+	m_pDevice->DrawPrimitiveUP(D3DPT_TRIANGLEFAN, iVertex - 2, vertices, sizeof(PANEL_VERTEX));
+
+	m_pDevice->SetRenderState(D3DRS_LIGHTING, dwOldLight);
+	m_pDevice->SetRenderState(D3DRS_CULLMODE, dwOldCull);
+	m_pDevice->SetRenderState(D3DRS_DESTBLEND, dwOldDst);
+	m_pDevice->SetRenderState(D3DRS_SRCBLEND, dwOldSrc);
+	m_pDevice->SetRenderState(D3DRS_ALPHABLENDENABLE, dwOldAlpha);
+	m_pDevice->SetRenderState(D3DRS_ZENABLE, dwOldZ);
+	m_pDevice->SetFVF(dwOldFVF);
+}
+
+//----------------------------------------------------
+
 void CDialog::Draw()
 {
 	if (!m_bVisible || !m_pDialog) return;
@@ -179,6 +273,18 @@ void CDialog::Draw()
 
 	m_pDialog->SetLocation(m_iPosX, m_iPosY);
 	m_pDialog->SetSize(m_iWidth, m_iHeight);
+
+	int iCaptionHeight = m_pDialog->GetCaptionHeight();
+
+	// the dxut background is a square quad, so it is turned off and replaced with
+	// a rounded one underneath the controls
+	if (!m_pDialog->GetMinimized())
+	{
+		RECT panel;
+		GetRect(&panel);
+		DrawRoundedPanel(&panel, iCaptionHeight);
+	}
+
 	m_pDialog->OnRender(10.0f);
 
 	if (!m_szContent) return;
@@ -194,9 +300,11 @@ void CDialog::Draw()
 		RECT rect;
 		GetRect(&rect);
 
+		// dxut shifts every control down past the caption, this text is drawn
+		// straight to the screen so it has to clear the caption itself
 		rect.left += DIALOG_SIDE_MARGIN;
 		rect.right -= DIALOG_SIDE_MARGIN;
-		rect.top += DIALOG_CONTENT_MARGIN;
+		rect.top += iCaptionHeight + DIALOG_CONTENT_MARGIN;
 		rect.bottom = rect.top + m_ContentSize.cy;
 
 		pDefaultFont->RenderSmallerText(NULL, m_szContent, rect,
@@ -476,9 +584,11 @@ void CDialog::Show(int iID, int iStyle, char* szCaption,
 		}
 		}
 
-		// the button row closes the box
+		// the button row closes the box. dxut offsets every control down by the
+		// caption height, so the panel has to carry that on top of the stack
 		int iButtonTop = iRowTop + DIALOG_ROW_GAP;
-		m_iHeight = iButtonTop + m_iButtonHeight + DIALOG_CONTENT_MARGIN;
+		m_iHeight = m_pDialog->GetCaptionHeight() + iButtonTop + m_iButtonHeight +
+					DIALOG_CONTENT_MARGIN;
 
 		// two buttons plus the gap between them have to fit
 		int iButtonRowWidth = (2 * m_iButtonWidth) + DIALOG_ROW_GAP + (2 * DIALOG_SIDE_MARGIN);
