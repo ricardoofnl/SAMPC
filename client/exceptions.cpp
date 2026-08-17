@@ -56,6 +56,7 @@ static const char* ResolveAddress(PVOID pAddress, char* szOut, size_t nOutSize)
 // back, so watch the dword with a debug register and log whoever writes it
 static PVOID pWatchHandler = NULL;
 static DWORD dwWatchAddress = 0;
+static DWORD dwWatchExpect = 0;
 
 static void DisarmWatch()
 {
@@ -80,6 +81,13 @@ static LONG CALLBACK WatchHandler(PEXCEPTION_POINTERS pExc)
 
 	if (pExc->ExceptionRecord->ExceptionCode != EXCEPTION_SINGLE_STEP)
 		return EXCEPTION_CONTINUE_SEARCH;
+
+	// clear the trap bit or the same write keeps re-raising, and stay armed for
+	// writes that put the ped back where it belongs
+	pExc->ContextRecord->Dr6 = 0;
+
+	if (*(DWORD*)dwWatchAddress == dwWatchExpect)
+		return EXCEPTION_CONTINUE_EXECUTION;
 
 	if (fopen_s(&f, "samp-watchpoint.txt", "w") == 0) {
 		fprintf_s(f, "write to 0x%08X from 0x%08X (%s)\n"
@@ -116,6 +124,7 @@ void ArmPedIntelligenceWatch(DWORD dwAddress)
 		return;
 
 	dwWatchAddress = dwAddress;
+	dwWatchExpect = *(DWORD*)dwAddress;
 	pWatchHandler = AddVectoredExceptionHandler(1, WatchHandler);
 
 	ctx.ContextFlags = CONTEXT_DEBUG_REGISTERS;
@@ -440,6 +449,10 @@ static INT_PTR CALLBACK GuiDlgProcMain(HWND hDlg, UINT uMsg, WPARAM wParam, LPAR
 
 LONG WINAPI exc_handler(_EXCEPTION_POINTERS* exc_inf)
 {
+	// a stray debug register trap is not a crash, never turn one into a dump
+	if (exc_inf->ExceptionRecord->ExceptionCode == EXCEPTION_SINGLE_STEP)
+		return EXCEPTION_CONTINUE_EXECUTION;
+
 	pExceptionPtrs = exc_inf;
 
 	if (pGame) {
