@@ -117,9 +117,7 @@ public:
 
 	unsigned char GetNumOfPassengerSeats();
 
-	void SetEngine(bool bOn) { m_bEngineState = bOn; };
-	void SetLights(bool bOn) { m_bLightState = bOn; };
-	void SetObjective(bool bOn) { m_bObjective = bOn; };
+	void SetObjective(bool bOn);
 
 	CVehicle* sub_100B7D00();
 
@@ -136,9 +134,6 @@ public:
 	DWORD		m_dwTimeSinceLastDriven;
 	BOOL		m_bHasBeenDriven;
 	CVehicle*   m_pTrailer;
-	bool		m_bEngineState;
-	bool		m_bLightState;
-	bool		m_bObjective;
 	char		m_szLicensePlate[MAX_LICENSE_PLATE_TEXT+1];
 	IDirect3DTexture9* m_pLicensePlateTexture;
 };

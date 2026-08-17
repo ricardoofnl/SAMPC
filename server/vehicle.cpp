@@ -48,8 +48,6 @@ CVehicle::CVehicle( int iModel, VECTOR *vecPos, float fRotation, int iColor1,
 	m_fHealth = 1000.0f;
 	m_bDeathHasBeenNotified = false;
 	m_iVirtualWorld = 0;
-	m_Windows = { 1, 1, 1, 1 }; // Close all window 
-	m_Doors = { 0,0,0,0 }; // Close all doors
 
 	m_iPanelDamageStatus = 0;
 	m_iDoorDamageStatus = 0;
@@ -70,22 +68,14 @@ CVehicle::CVehicle( int iModel, VECTOR *vecPos, float fRotation, int iColor1,
 	m_bDead = false;
 	bOldSirenState = false; // disabled
 
-	m_Params.byteAlarm = VEHICLE_PARAMS_UNSET;
-	m_Params.byteBonnet = VEHICLE_PARAMS_UNSET;
-	m_Params.byteBoot = VEHICLE_PARAMS_UNSET;
-	m_Params.byteDoors = VEHICLE_PARAMS_UNSET;
-	m_Params.byteEngine = VEHICLE_PARAMS_UNSET;
-	m_Params.byteLights = VEHICLE_PARAMS_UNSET;
-	m_Params.byteObjective = VEHICLE_PARAMS_UNSET;
-	m_Params.byteSiren = VEHICLE_PARAMS_UNSET;
-	m_Params.byteDriverDoor = VEHICLE_PARAMS_UNSET;
-	m_Params.bytePassengerDoor = VEHICLE_PARAMS_UNSET;
-	m_Params.byteBackLeftDoor = VEHICLE_PARAMS_UNSET;
-	m_Params.byteBackRightDoor = VEHICLE_PARAMS_UNSET;
-	m_Params.byteDriverWindow = VEHICLE_PARAMS_UNSET;
-	m_Params.bytePassengerWindow = VEHICLE_PARAMS_UNSET;
-	m_Params.byteBackLeftWindow = VEHICLE_PARAMS_UNSET;
-	m_Params.byteBackRightWindow = VEHICLE_PARAMS_UNSET;
+	ResetParams();
+}
+
+//----------------------------------------------------------
+
+void CVehicle::ResetParams()
+{
+	memset(&m_Params, VEHICLE_PARAMS_UNSET, sizeof(VEHICLE_PARAMS));
 }
 
 //----------------------------------------------------
@@ -176,9 +166,6 @@ void CVehicle::SpawnForPlayer(BYTE byteForPlayerID)
 
 	bsVehicleSpawn.Write(m_bHasSiren);
 
-	bsVehicleSpawn.WriteBits((unsigned char*)&m_Windows, 4);
-	bsVehicleSpawn.WriteBits((unsigned char*)&m_Doors, 4);
-
 	if(m_szNumberPlate[0] == '\0') {
 		bsVehicleSpawn.Write(false);
 	} else {
@@ -194,6 +181,25 @@ void CVehicle::SpawnForPlayer(BYTE byteForPlayerID)
 
 	pNetGame->GetRakServer()->RPC(RPC_VehicleSpawn ,&bsVehicleSpawn,HIGH_PRIORITY,RELIABLE,
 		0,pNetGame->GetRakServer()->GetPlayerIDFromIndex(byteForPlayerID),false,false);
+
+	if(HasParamsSet()) SendParams(byteForPlayerID);
+}
+
+//----------------------------------------------------------
+
+// wPlayerID == INVALID_PLAYER_ID broadcasts to everyone
+void CVehicle::SendParams(WORD wPlayerID)
+{
+	RakNet::BitStream bsParams;
+
+	bsParams.Write(m_VehicleID);
+	bsParams.Write((PCHAR)&m_Params, sizeof(VEHICLE_PARAMS));
+
+	if(wPlayerID == INVALID_PLAYER_ID) {
+		pNetGame->SendToAll(RPC_VehicleParams, &bsParams);
+	} else {
+		pNetGame->SendToPlayer(wPlayerID, RPC_VehicleParams, &bsParams);
+	}
 }
 
 //----------------------------------------------------------
@@ -302,10 +308,13 @@ void CVehicle::Respawn()
 	m_matWorld.pos.X = m_SpawnInfo.vecPos.X;
 	m_matWorld.pos.Y = m_SpawnInfo.vecPos.Y;
 	m_matWorld.pos.Z = m_SpawnInfo.vecPos.Z;
-				
+
+	// the client rebuilds the game vehicle from scratch, so the params go with it
+	ResetParams();
+
 	RakNet::BitStream bsVehicle;
 	bsVehicle.Write(m_VehicleID);
-	pRak->RPC(RPC_ScrRespawnVehicle , &bsVehicle, HIGH_PRIORITY, 
+	pRak->RPC(RPC_ScrRespawnVehicle , &bsVehicle, HIGH_PRIORITY,
 		RELIABLE, 0, UNASSIGNED_PLAYER_ID, true, false);
 	
 	m_bDead = false;
@@ -381,26 +390,12 @@ void CVehicle::SetVirtualWorld(int iVirtualWorld)
 
 bool CVehicle::HasParamsSet()
 {
-	if (m_Params.byteAlarm != VEHICLE_PARAMS_UNSET ||
-		m_Params.byteBonnet != VEHICLE_PARAMS_UNSET ||
-		m_Params.byteBoot != VEHICLE_PARAMS_UNSET ||
-		m_Params.byteDoors != VEHICLE_PARAMS_UNSET ||
-		m_Params.byteEngine != VEHICLE_PARAMS_UNSET ||
-		m_Params.byteLights != VEHICLE_PARAMS_UNSET ||
-		m_Params.byteObjective != VEHICLE_PARAMS_UNSET ||
-		m_Params.byteSiren != VEHICLE_PARAMS_UNSET ||
-		m_Params.byteDriverDoor != VEHICLE_PARAMS_UNSET ||
-		m_Params.bytePassengerDoor != VEHICLE_PARAMS_UNSET ||
-		m_Params.byteBackLeftDoor != VEHICLE_PARAMS_UNSET ||
-		m_Params.byteBackRightDoor != VEHICLE_PARAMS_UNSET ||
-		m_Params.byteDriverWindow != VEHICLE_PARAMS_UNSET ||
-		m_Params.bytePassengerWindow != VEHICLE_PARAMS_UNSET ||
-		m_Params.byteBackLeftWindow != VEHICLE_PARAMS_UNSET ||
-		m_Params.byteBackRightWindow != VEHICLE_PARAMS_UNSET)
-	{
-		return true;
-	}
-	return false;
+	VEHICLE_PARAMS ParamsUnset;
+
+	// the fields are BYTE, so an unset one holds 0xFF and never compares equal to -1
+	memset(&ParamsUnset, VEHICLE_PARAMS_UNSET, sizeof(VEHICLE_PARAMS));
+
+	return memcmp(&m_Params, &ParamsUnset, sizeof(VEHICLE_PARAMS)) != 0;
 }
 
 //----------------------------------------------------------

@@ -446,14 +446,6 @@ struct MENU_INT
 
 typedef struct
 {
-	unsigned char bDriver : 1;
-	unsigned char bPassenger : 1;
-	unsigned char bBackLeft : 1;
-	unsigned char bBackRight : 1;
-} VEHICLE_OPEN_CLOSE_FLAG;
-
-typedef struct
-{
 	unsigned short usActorID;
 	int iModelID;
 	VECTOR vecPosition;

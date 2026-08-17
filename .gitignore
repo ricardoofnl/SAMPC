@@ -48,6 +48,9 @@ announce/announce
 # Release staging
 release/
 
+# Local test server, dist/package.sh output plus a scratch gamemode
+server-test/
+
 # That stupid settings.ini from Pawno
 pawno/settings.ini
 

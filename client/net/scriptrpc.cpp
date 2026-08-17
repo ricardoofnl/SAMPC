@@ -1432,32 +1432,8 @@ static void ScrSetVehicle(RPCParameters* rpcParams)
 				case 1:
 					pVehicle->Fix();
 					break;
-				case 2: {
-					if (in.GetNumberOfUnreadBits() == 4) {
-						in.ReadBits((unsigned char*)&pVehiclePool->m_Windows[nVehicleID], 4);
-
-						// TODO: Need checking at and add model filtering here and/or server
-						// Seems like it works on most of the vehicles, but on some vehicles it crashes the game,
-						// with gta_sa.exe:0x6D30B5 crash address. ecx at [ecx+18h] looks like not initialized.
-						if (pVehicle->GetVehicleSubtype() == VEHICLE_SUBTYPE_CAR) {
-							pVehicle->ToggleWindow(10, pVehiclePool->m_Windows[nVehicleID].bDriver);
-							pVehicle->ToggleWindow(8, pVehiclePool->m_Windows[nVehicleID].bPassenger);
-							pVehicle->ToggleWindow(11, pVehiclePool->m_Windows[nVehicleID].bBackLeft);
-							pVehicle->ToggleWindow(9, pVehiclePool->m_Windows[nVehicleID].bBackRight);
-						}
-					}
-					break;
-				}
 				case 3: {
 					pVehicle->ToggleTaxiLight(in.ReadBit());
-					break;
-				}
-				case 4: {
-					pVehicle->ToggleEngine(in.ReadBit());
-					break;
-				}
-				case 5: {
-					pVehicle->SetLightState(in.ReadBit());
 					break;
 				}
 				case 6: {
@@ -1466,17 +1442,6 @@ static void ScrSetVehicle(RPCParameters* rpcParams)
 				}
 				case 7: {
 					pVehicle->SetVisibility(in.ReadBit());
-					break;
-				}
-				case 8: {
-					if (in.GetNumberOfUnreadBits() == 4) {
-						in.ReadBits((unsigned char*)&pVehiclePool->m_Doors[nVehicleID], 4);
-
-						pVehicle->ToggleDoor(2, 10, pVehiclePool->m_Doors[nVehicleID].bDriver ? 1.0f : 0.0f);
-						pVehicle->ToggleDoor(3, 8, pVehiclePool->m_Doors[nVehicleID].bPassenger ? 1.0f : 0.0f);
-						pVehicle->ToggleDoor(4, 11, pVehiclePool->m_Doors[nVehicleID].bBackLeft ? 1.0f : 0.0f);
-						pVehicle->ToggleDoor(5, 9, pVehiclePool->m_Doors[nVehicleID].bBackRight ? 1.0f : 0.0f);
-					}
 					break;
 				}
 				case 9:

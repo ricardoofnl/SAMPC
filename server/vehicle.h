@@ -56,8 +56,6 @@ public:
 	DWORD					m_dwLastRespawnedTick;
 	int						m_iVirtualWorld;
 	bool					m_bHasSiren;
-	VEHICLE_OPEN_CLOSE_FLAG m_Windows;
-	VEHICLE_OPEN_CLOSE_FLAG m_Doors;
 	VEHICLE_PARAMS m_Params;
 
 	int m_iPanelDamageStatus;
@@ -86,6 +84,8 @@ public:
 	VEHICLE_SPAWN_INFO * GetSpawnInfo() { return &m_SpawnInfo; };
 
 	void SpawnForPlayer(BYTE byteForPlayerID);
+	void SendParams(WORD wPlayerID = INVALID_PLAYER_ID);
+	void ResetParams();
 	void SetVehicleInterior(int iIntSet) { m_SpawnInfo.iInterior = iIntSet; };
 	void SetDead() { m_bDead = true; }; // Respawns due to death in ~10s
 	void SetHealth(float fHealth);

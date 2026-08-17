@@ -19,9 +19,9 @@ CVehiclePool::CVehiclePool()
 		m_bVehicleSlotState[VehicleID] = false;
 		m_pVehicles[VehicleID] = NULL;
 		m_iVirtualWorld[VehicleID] = 0;
-		m_Windows[VehicleID] = { 1,1,1,1 };
-		m_Doors[VehicleID] = { 0,0,0,0 };
 		m_bHasSiren[VehicleID] = false;
+		m_byteLightsApplied[VehicleID] = (BYTE)VEHICLE_PARAMS_UNSET;
+		ResetParams(VehicleID);
 	}
 	m_bRebuildPlateTextures = true;
 	m_PoolSize = INVALID_VEHICLE_ID;
@@ -71,8 +71,7 @@ bool CVehiclePool::New( VEHICLEID VehicleID, int iVehicleType,
 	m_iVirtualWorld[VehicleID] = 0;
 
 	// New vehicle added, resetting values...
-	m_Windows[VehicleID] = { 1,1,1,1 };
-	m_Doors[VehicleID] = { 0,0,0,0 };
+	ResetParams(VehicleID);
 
 	// Now go ahead and spawn it at the location we got passed.
 	return Spawn(VehicleID,iVehicleType,vecPos,fRotation,iColor1,iColor2,iInterior,szNumberPlate);
@@ -176,22 +175,9 @@ bool CVehiclePool::Spawn( VEHICLEID VehicleID, int iVehicleType,
 			LinkToInterior(VehicleID, iInterior);
 		}
 
-		// TODO: Need checking at and add model filtering here and/or server
-		// Seems like it works on most of the vehicles, but on some vehicles it crashes the game,
-		// with gta_sa.exe:0x6D30B5 crash address. ecx at [ecx+18h] looks like not initialized.
-		if (m_pVehicles[VehicleID]->GetVehicleSubtype() == VEHICLE_SUBTYPE_CAR) {
-			m_pVehicles[VehicleID]->ToggleWindow(10, m_Windows[VehicleID].bDriver);
-			m_pVehicles[VehicleID]->ToggleWindow(8, m_Windows[VehicleID].bPassenger);
-			m_pVehicles[VehicleID]->ToggleWindow(11, m_Windows[VehicleID].bBackLeft);
-			m_pVehicles[VehicleID]->ToggleWindow(9, m_Windows[VehicleID].bBackRight);
-		}
-
-		// Wiki: 1 to open, 0 to close
-		m_pVehicles[VehicleID]->ToggleDoor(2, 10, m_Doors[VehicleID].bDriver ? 1.0f : 0.0f);
-		m_pVehicles[VehicleID]->ToggleDoor(3, 8, m_Doors[VehicleID].bPassenger ? 1.0f : 0.0f);
-		m_pVehicles[VehicleID]->ToggleDoor(4, 11, m_Doors[VehicleID].bBackLeft ? 1.0f : 0.0f);
-		m_pVehicles[VehicleID]->ToggleDoor(5, 9, m_Doors[VehicleID].bBackRight ? 1.0f : 0.0f);
-		
+		// the game vehicle is brand new here, so whatever the server told us before is gone
+		m_byteLightsApplied[VehicleID] = (BYTE)VEHICLE_PARAMS_UNSET;
+		ApplyParams(VehicleID);
 
 		m_bIsActive[VehicleID] = true;
 		m_bIsWasted[VehicleID] = false;
@@ -234,6 +220,142 @@ void CVehiclePool::AssignSpecialParamsToVehicle(VEHICLEID VehicleID, BYTE byteOb
 		}
 		pVehicle->SetDoorState(byteDoorsLocked);
 	}
+}
+
+//----------------------------------------------------
+
+void CVehiclePool::ResetParams(VEHICLEID VehicleID)
+{
+	if(VehicleID >= MAX_VEHICLES) return;
+
+	memset(&m_Params[VehicleID], VEHICLE_PARAMS_UNSET, sizeof(VEHICLE_PARAMS));
+}
+
+//----------------------------------------------------
+
+// the game keeps flipping the engine back, so it gets rewritten every frame
+void CVehiclePool::ProcessEngineAndLights(VEHICLEID VehicleID)
+{
+	CVehicle *pVehicle = GetAt(VehicleID);
+	if(!pVehicle) return;
+
+	VEHICLE_PARAMS *pParams = &m_Params[VehicleID];
+
+	if(pNetGame->m_bManualEngineAndLights) {
+		pVehicle->SetEngineState(pParams->byteEngine == VEHICLE_PARAMS_ON);
+		ApplyLights(VehicleID, pParams->byteLights == VEHICLE_PARAMS_ON);
+		return;
+	}
+
+	if(pParams->byteEngine == VEHICLE_PARAMS_ON)
+		pVehicle->SetEngineState(TRUE);
+	else if(pParams->byteEngine == VEHICLE_PARAMS_OFF)
+		pVehicle->SetEngineState(FALSE);
+	else
+		pVehicle->SetEngineState(pVehicle->HasADriver());
+
+	// unset leaves the lights alone, the game decides
+	if(pParams->byteLights != (BYTE)VEHICLE_PARAMS_UNSET)
+		ApplyLights(VehicleID, pParams->byteLights == VEHICLE_PARAMS_ON);
+}
+
+//----------------------------------------------------
+
+void CVehiclePool::ApplyLights(VEHICLEID VehicleID, bool bOn)
+{
+	BYTE byteWanted = bOn ? VEHICLE_PARAMS_ON : VEHICLE_PARAMS_OFF;
+
+	if(m_byteLightsApplied[VehicleID] == byteWanted) return;
+
+	m_pVehicles[VehicleID]->SetLightState(bOn);
+	m_byteLightsApplied[VehicleID] = byteWanted;
+}
+
+//----------------------------------------------------
+
+void CVehiclePool::ApplyParams(VEHICLEID VehicleID)
+{
+	CVehicle *pVehicle = GetAt(VehicleID);
+	if(!pVehicle) return;
+
+	// engine and lights are not applied here, Process() forces them every frame
+	VEHICLE_PARAMS *pParams = &m_Params[VehicleID];
+
+	if(pParams->byteDoors == VEHICLE_PARAMS_ON)
+		pVehicle->SetDoorState(1);
+	else if(pParams->byteDoors == VEHICLE_PARAMS_OFF)
+		pVehicle->SetDoorState(0);
+
+	if(pParams->byteObjective == VEHICLE_PARAMS_ON)
+		pVehicle->SetObjective(true);
+	else if(pParams->byteObjective == VEHICLE_PARAMS_OFF)
+		pVehicle->SetObjective(false);
+
+	if(pParams->byteBoot == VEHICLE_PARAMS_ON)
+		pVehicle->ToggleDoor(1, 17, 1.0f);
+	else if(pParams->byteBoot == VEHICLE_PARAMS_OFF)
+		pVehicle->ToggleDoor(1, 17, 0.0f);
+
+	if(pParams->byteBonnet == VEHICLE_PARAMS_ON)
+		pVehicle->ToggleDoor(1, 16, 1.0f);
+	else if(pParams->byteBonnet == VEHICLE_PARAMS_OFF)
+		pVehicle->ToggleDoor(1, 16, 0.0f);
+
+	if(pParams->byteAlarm == VEHICLE_PARAMS_ON)
+	{
+		pVehicle->SetSirenOn(TRUE);
+		pVehicle->SetAlarmState(20000);
+	}
+	else if(pParams->byteAlarm == VEHICLE_PARAMS_OFF)
+	{
+		pVehicle->SetSirenOn(FALSE);
+		pVehicle->SetAlarmState(0);
+	}
+
+	if(pParams->byteSiren == VEHICLE_PARAMS_ON)
+		pVehicle->SetSirenOn(TRUE);
+	else if(pParams->byteSiren == VEHICLE_PARAMS_OFF)
+		pVehicle->SetSirenOn(FALSE);
+
+	if(pParams->byteDriverDoor == VEHICLE_PARAMS_ON)
+		pVehicle->ToggleDoor(2, 10, 1.0f);
+	else if(pParams->byteDriverDoor == VEHICLE_PARAMS_OFF)
+		pVehicle->ToggleDoor(2, 10, 0.0f);
+
+	if(pParams->bytePassengerDoor == VEHICLE_PARAMS_ON)
+		pVehicle->ToggleDoor(3, 8, 1.0f);
+	else if(pParams->bytePassengerDoor == VEHICLE_PARAMS_OFF)
+		pVehicle->ToggleDoor(3, 8, 0.0f);
+
+	if(pParams->byteBackLeftDoor == VEHICLE_PARAMS_ON)
+		pVehicle->ToggleDoor(4, 11, 1.0f);
+	else if(pParams->byteBackLeftDoor == VEHICLE_PARAMS_OFF)
+		pVehicle->ToggleDoor(4, 11, 0.0f);
+
+	if(pParams->byteBackRightDoor == VEHICLE_PARAMS_ON)
+		pVehicle->ToggleDoor(5, 9, 1.0f);
+	else if(pParams->byteBackRightDoor == VEHICLE_PARAMS_OFF)
+		pVehicle->ToggleDoor(5, 9, 0.0f);
+
+	if(pParams->byteDriverWindow == VEHICLE_PARAMS_ON)
+		pVehicle->ToggleWindow(10, true);
+	else if(pParams->byteDriverWindow == VEHICLE_PARAMS_OFF)
+		pVehicle->ToggleWindow(10, false);
+
+	if(pParams->bytePassengerWindow == VEHICLE_PARAMS_ON)
+		pVehicle->ToggleWindow(8, true);
+	else if(pParams->bytePassengerWindow == VEHICLE_PARAMS_OFF)
+		pVehicle->ToggleWindow(8, false);
+
+	if(pParams->byteBackLeftWindow == VEHICLE_PARAMS_ON)
+		pVehicle->ToggleWindow(11, true);
+	else if(pParams->byteBackLeftWindow == VEHICLE_PARAMS_OFF)
+		pVehicle->ToggleWindow(11, false);
+
+	if(pParams->byteBackRightWindow == VEHICLE_PARAMS_ON)
+		pVehicle->ToggleWindow(9, true);
+	else if(pParams->byteBackRightWindow == VEHICLE_PARAMS_OFF)
+		pVehicle->ToggleWindow(9, false);
 }
 
 //----------------------------------------------------
@@ -429,8 +551,9 @@ void CVehiclePool::Process()
 
 				if(!pVehicle->HasADriver()) {
 					pVehicle->SetHornState(0);
-					pVehicle->SetEngineState(false);
 				}
+
+				ProcessEngineAndLights(x);
 
 				// Put at the END so other processing is still done!
 				ProcessForVirtualWorld(x, localVW);
@@ -466,6 +589,9 @@ void CVehiclePool::SetForRespawn(VEHICLEID VehicleID, int iRespawnDelay)
 		m_bIsActive[VehicleID] = false;
 		m_bIsWasted[VehicleID] = true;
 		m_iRespawnDelay[VehicleID] = iRespawnDelay;
+
+		// the server drops them too, a respawned vehicle starts from a clean state
+		ResetParams(VehicleID);
 	}
 }
 

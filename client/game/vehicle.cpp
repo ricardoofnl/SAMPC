@@ -664,6 +664,20 @@ void CVehicle::ProcessMarkers()
 
 //-----------------------------------------------------------
 
+// ProcessMarkers picks the change up from m_bSpecialMarkerEnabled being out of date
+void CVehicle::SetObjective(bool bOn)
+{
+	if(bOn) {
+		m_byteObjectiveVehicle = 1;
+		m_bSpecialMarkerEnabled = FALSE;
+	} else {
+		m_byteObjectiveVehicle = 0;
+		m_bSpecialMarkerEnabled = TRUE;
+	}
+}
+
+//-----------------------------------------------------------
+
 void CVehicle::SetDoorState(int iState)
 {
 	if(iState) {
@@ -1106,6 +1120,9 @@ BOOL CVehicle::VerifyInstance()
 
 void CVehicle::ToggleWindow(unsigned char ucDoorId, bool bClosed)
 {
+	// 0x6D30B5 is "mov ecx, [ecx+18h]", it reads the RwObject straight off this
+	if(!m_pVehicle) return;
+
 	DWORD dwThis = (DWORD)m_pVehicle;
 	DWORD dwFunc = bClosed ? (0x6D30B0) : (0x6D3080);
 	DWORD dwDoorId = (DWORD)ucDoorId;

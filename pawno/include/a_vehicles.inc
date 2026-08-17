@@ -22,6 +22,10 @@
 #define CARMODTYPE_REAR_BULLBARS 	(15)
 #define CARMODTYPE_FRONT_BULLBARS	(16)
 
+#define VEHICLE_PARAMS_UNSET		(-1)
+#define VEHICLE_PARAMS_OFF			(0)
+#define VEHICLE_PARAMS_ON			(1)
+
 #define VEHICLE_DOOR_FRONT_LEFT 	(1)
 #define VEHICLE_DOOR_FRONT_RIGHT	(2)
 #define VEHICLE_DOOR_REAR_LEFT 		(3)
@@ -54,6 +58,9 @@ native SetVehicleParamsCarDoors(vehicleid, driver, passenger, backleft, backrigh
 native GetVehicleParamsCarDoors(vehicleid, &driver, &passenger, &backleft, &backright);
 native SetVehicleParamsCarWindows(vehicleid, driver, passenger, backleft, backright);
 native GetVehicleParamsCarWindows(vehicleid, &driver, &passenger, &backleft, &backright);
+native SetVehicleParamsEx(vehicleid, engine, lights, alarm, doors, bonnet, boot, objective);
+native GetVehicleParamsEx(vehicleid, &engine, &lights, &alarm, &doors, &bonnet, &boot, &objective);
+native ManualVehicleEngineAndLights();
 native SetVehicleToRespawn(vehicleid);
 native LinkVehicleToInterior(vehicleid, interiorid);
 native GetVehicleInterior(vehicleid);
