@@ -43,6 +43,7 @@ public:
 	void GetRect(RECT* rect);
 	LONG GetTextWidth(char* szText);
 	LONG GetFontHeight();
+	void SetupList(char* szContent, SIZE* pSize);
 	void Show(int iID, int iStyle, char* szCaption, char* szContent, char* szButton1, char* szButton2, bool bSendResponse);
 	void Hide();
 	void Draw();

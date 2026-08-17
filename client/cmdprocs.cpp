@@ -78,6 +78,10 @@ void cmdSetFontSize(PCHAR szCmd)
 		if (pGameUI)
 			pGameUI->UpdateFont();
 
+		// sa-mp documents /fontsize as covering the chat and the dialogs
+		if (pDialog)
+			pDialog->UpdateFont();
+
 		// TODO: Add font change for scoreboard, spawn, gui, etc here...
 	}
 	else

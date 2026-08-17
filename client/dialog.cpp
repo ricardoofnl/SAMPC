@@ -149,6 +149,63 @@ LONG CDialog::GetFontHeight()
 	return m_pDialog->GetFont(1)->nHeight;
 }
 
+//----------------------------------------------------
+
+// copies up to the next newline, returns where it stopped
+static char* CopyDialogLine(char* szText, char* szOut, size_t uiOutSize)
+{
+	size_t i = 0;
+
+	while (szText[i] && szText[i] != '\n' && i < (uiOutSize - 1))
+	{
+		szOut[i] = szText[i];
+		i++;
+	}
+	szOut[i] = '\0';
+
+	return szText + i;
+}
+
+//----------------------------------------------------
+
+// fills the list box from the newline separated content and reports back the size
+// it wants, the original measures and populates in the same pass
+void CDialog::SetupList(char* szContent, SIZE* pSize)
+{
+	m_pListBox->RemoveAllItems();
+	m_pListBox->m_nColumns = 0;
+
+	char szLine[256];
+	char* pText = szContent;
+	int iMaxWidth = 0;
+	int iTotalHeight = 0;
+	int iIndex = 0;
+
+	while (pText && *pText)
+	{
+		memset(szLine, 0, sizeof(szLine));
+		pText = CopyDialogLine(pText, szLine, sizeof(szLine));
+
+		if (strlen(szLine))
+		{
+			LONG lWidth = GetTextWidth(szLine);
+			if (lWidth > iMaxWidth) iMaxWidth = (int)lWidth;
+
+			iTotalHeight += GetFontHeight();
+			m_pListBox->AddItem(szLine, iIndex++, (D3DCOLOR)-1);
+		}
+
+		if (!*pText) break;
+		if (*pText == '\n') pText++;
+	}
+
+	if (pSize)
+	{
+		pSize->cx = iMaxWidth + 20;
+		pSize->cy = iTotalHeight;
+	}
+}
+
 void CDialog::Hide()
 {
 	pGame->ToggleKeyInputsDisabled(0);
@@ -292,7 +349,31 @@ void CDialog::Show(int iID, int iStyle, char* szCaption,
 			break;
 		}
 		case DIALOG_STYLE_LIST:
+		{
+			SIZE listSize;
+			SetupList(m_szContent, &listSize);
+
+			m_iWidth = listSize.cx + 40;
+			if (m_iWidth < 400) m_iWidth = 400;
+			if (m_iWidth > 800) m_iWidth = 800;
+			if (m_iWidth < (2 * m_iButtonWidth) + 30)
+				m_iWidth = (2 * m_iButtonWidth) + 30;
+
+			int iListHeight = listSize.cy + (2 * (int)GetFontHeight());
+			if (iListHeight < 200) iListHeight = 200;
+			if (iListHeight > 400) iListHeight = 400;
+
+			m_iHeight = m_iButtonHeight + m_pDialog->GetCaptionHeight() + iListHeight + 15;
+
+			m_pListBox->SetLocation(5, 5);
+			m_pListBox->SetSize(m_iWidth - 10, iListHeight);
+			m_pListBox->SetVisible(true);
+			m_pListBox->SetEnabled(true);
+
+			m_pEditBox->SetVisible(false);
+			m_pEditBox->SetEnabled(false);
 			break;
+		}
 		case DIALOG_STYLE_PASSWORD:
 			break;
 		case DIALOG_STYLE_TABLIST:
