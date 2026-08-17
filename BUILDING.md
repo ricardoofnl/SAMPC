@@ -28,6 +28,14 @@ once: it changed the wire layout away from what MSVC produces, and it gave
 `std::istringstream` a packed layout that the prebuilt libstdc++ does not share,
 which smashed the stack in `CPlugins::LoadPlugins`.
 
+RakNet's `DataStructures::List::Insert` used to call `memcpy(new_array, listArray,
+0)` on the first insert, with `listArray` still null. `memcpy` is declared
+`nonnull`, so GCC concluded the pointer could not be null and dropped the null
+check from the `delete[] listArray` right after it, then faulted reading the array
+cookie at `listArray[-1]`. MSVC does not make that inference, which is why only the
+linux server crashed, and only once a client connected and `RangeList` grew its
+first ACK range. The memcpy calls in `DS_List.h` are guarded by `list_size` now.
+
 ## Server, windows
 
 ```text

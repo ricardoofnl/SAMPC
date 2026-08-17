@@ -214,7 +214,10 @@ namespace DataStructures
 			//	new_array[ counter ] = listArray[ counter ];
 
 			// Don't call constructors, assignment operators, etc.
-			memcpy(new_array, listArray, list_size*sizeof(list_type));
+			// memcpy is declared nonnull, so passing a null listArray lets gcc drop
+			// the null check in the delete[] below and fault on the array cookie
+			if ( list_size )
+				memcpy(new_array, listArray, list_size*sizeof(list_type));
 
 			// set old array to point to the newly allocated and twice as large array
 			delete[] listArray;
@@ -259,7 +262,8 @@ namespace DataStructures
 			//		new_array[ counter ] = listArray[ counter ];
 
 			// Don't call constructors, assignment operators, etc.
-			memcpy(new_array, listArray, list_size*sizeof(list_type));
+			if ( list_size )
+				memcpy(new_array, listArray, list_size*sizeof(list_type));
 
 			// set old array to point to the newly allocated and twice as large array
 			delete[] listArray;
@@ -297,7 +301,8 @@ namespace DataStructures
 				//	new_array[ counter ] = listArray[ counter ];
 
 				// Don't call constructors, assignment operators, etc.
-				memcpy(new_array, listArray, list_size*sizeof(list_type));
+				if ( list_size )
+					memcpy(new_array, listArray, list_size*sizeof(list_type));
 
 				// set old array to point to the newly allocated array
 				delete[] listArray;
