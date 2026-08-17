@@ -1664,6 +1664,59 @@ static cell n_GetVehicleParamsCarWindows(AMX* amx, cell* params)
 	return 0;
 }
 
+// native SetVehicleParamsEx(vehicleid, engine, lights, alarm, doors, bonnet, boot, objective)
+static cell n_SetVehicleParamsEx(AMX* amx, cell* params)
+{
+	CHECK_PARAMS(amx, "SetVehicleParamsEx", 8);
+
+	if (pNetGame->GetVehiclePool()) {
+		CVehicle* pVehicle = pNetGame->GetVehiclePool()->GetAt(params[1]);
+		if (pVehicle != nullptr) {
+			pVehicle->m_Params.byteEngine = ParamFromCell(params[2]);
+			pVehicle->m_Params.byteLights = ParamFromCell(params[3]);
+			pVehicle->m_Params.byteAlarm = ParamFromCell(params[4]);
+			pVehicle->m_Params.byteDoors = ParamFromCell(params[5]);
+			pVehicle->m_Params.byteBonnet = ParamFromCell(params[6]);
+			pVehicle->m_Params.byteBoot = ParamFromCell(params[7]);
+			pVehicle->m_Params.byteObjective = ParamFromCell(params[8]);
+
+			pVehicle->SendParams();
+			return 1;
+		}
+	}
+	return 0;
+}
+
+// native GetVehicleParamsEx(vehicleid, &engine, &lights, &alarm, &doors, &bonnet, &boot, &objective)
+static cell n_GetVehicleParamsEx(AMX* amx, cell* params)
+{
+	CHECK_PARAMS(amx, "GetVehicleParamsEx", 8);
+
+	if (pNetGame->GetVehiclePool()) {
+		CVehicle* pVehicle = pNetGame->GetVehiclePool()->GetAt(params[1]);
+		if (pVehicle != nullptr) {
+			cell* cptr;
+			if (amx_GetAddr(amx, params[2], &cptr) == AMX_ERR_NONE)
+				*cptr = ParamToCell(pVehicle->m_Params.byteEngine);
+			if (amx_GetAddr(amx, params[3], &cptr) == AMX_ERR_NONE)
+				*cptr = ParamToCell(pVehicle->m_Params.byteLights);
+			if (amx_GetAddr(amx, params[4], &cptr) == AMX_ERR_NONE)
+				*cptr = ParamToCell(pVehicle->m_Params.byteAlarm);
+			if (amx_GetAddr(amx, params[5], &cptr) == AMX_ERR_NONE)
+				*cptr = ParamToCell(pVehicle->m_Params.byteDoors);
+			if (amx_GetAddr(amx, params[6], &cptr) == AMX_ERR_NONE)
+				*cptr = ParamToCell(pVehicle->m_Params.byteBonnet);
+			if (amx_GetAddr(amx, params[7], &cptr) == AMX_ERR_NONE)
+				*cptr = ParamToCell(pVehicle->m_Params.byteBoot);
+			if (amx_GetAddr(amx, params[8], &cptr) == AMX_ERR_NONE)
+				*cptr = ParamToCell(pVehicle->m_Params.byteObjective);
+
+			return 1;
+		}
+	}
+	return 0;
+}
+
 // native ToggleTaxiLight(vehicleid, toggle)
 static cell n_ToggleTaxiLight(AMX* amx, cell* params)
 {
@@ -8485,6 +8538,8 @@ AMX_NATIVE_INFO custom_Natives[] =
 	DEFINE_NATIVE(GetVehicleParamsCarDoors),
 	DEFINE_NATIVE(SetVehicleParamsCarWindows),
 	DEFINE_NATIVE(GetVehicleParamsCarWindows),
+	DEFINE_NATIVE(SetVehicleParamsEx),
+	DEFINE_NATIVE(GetVehicleParamsEx),
 	DEFINE_NATIVE(ToggleTaxiLight),
 	DEFINE_NATIVE(SetVehicleEngineState),
 	DEFINE_NATIVE(GetVehicleVelocity),
