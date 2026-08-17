@@ -122,7 +122,7 @@ void CDialog::Draw()
 		m_iDialogStyle == DIALOG_STYLE_PASSWORD)
 	{
 		rect.left += 20;
-		rect.top += m_pDialog->GetCaptionHeight() + 5;
+		rect.top += DIALOG_CONTENT_MARGIN;
 
 		pDefaultFont->RenderSmallerText(NULL, m_szContent, rect,
 			DT_NOCLIP | DT_EXPANDTABS, 0xFFA9C4E4, true);
@@ -328,34 +328,47 @@ void CDialog::Show(int iID, int iStyle, char* szCaption,
 			
 		}
 
+		// every style opts in to what it needs, otherwise the edit box from a
+		// previous input dialog stays on screen over the next one
+		m_pEditBox->SetVisible(false);
+		m_pEditBox->SetEnabled(false);
+		m_pListBox->SetVisible(false);
+		m_pListBox->SetEnabled(false);
+
+		int iEditHeight = (int)(m_pDialog->GetFont(1)->nHeight * 1.6f + 14.0f);
+		int iContentTop = DIALOG_CONTENT_MARGIN + m_ContentSize.cy;
+
 		switch (m_iDialogStyle)
 		{
 		case DIALOG_STYLE_MSGBOX:
 		{
 			m_iWidth = m_ContentSize.cx + 40;
-			m_iHeight = m_ContentSize.cy + m_pDialog->GetCaptionHeight() + m_iButtonHeight + 25;
-			m_pEditBox->SetVisible(false);
-			m_pEditBox->SetEnabled(false);
-			m_pListBox->SetVisible(false);
-			m_pListBox->SetEnabled(false);
+			if (m_iWidth < (2 * m_iButtonWidth) + 30)
+				m_iWidth = (2 * m_iButtonWidth) + 30;
+
+			m_iHeight = DIALOG_CONTENT_MARGIN + m_ContentSize.cy + m_iButtonHeight + 30;
 			break;
 		}
 		case DIALOG_STYLE_INPUT:
+		case DIALOG_STYLE_PASSWORD:
 		{
 			m_iWidth = m_ContentSize.cx + 40;
-			m_iHeight = m_iButtonHeight +
-						m_ContentSize.cy +
-						(m_pDialog->GetFont(1)->nHeight * 1.6f + 14.0f) +
-						m_pDialog->GetCaptionHeight() + 25;
+			if (m_iWidth < (2 * m_iButtonWidth) + 30)
+				m_iWidth = (2 * m_iButtonWidth) + 30;
 
+			m_iHeight = DIALOG_CONTENT_MARGIN + m_ContentSize.cy + iEditHeight +
+						m_iButtonHeight + 30;
+
+			m_pEditBox->SetLocation(10, iContentTop);
+			m_pEditBox->SetSize(m_iWidth - 20, iEditHeight);
+			m_pEditBox->SetText("");
 			m_pEditBox->SetVisible(true);
 			m_pEditBox->SetEnabled(true);
-			m_pEditBox->SetText("");
-			m_pListBox->SetVisible(false);
-			m_pListBox->SetEnabled(false);
 			break;
 		}
 		case DIALOG_STYLE_LIST:
+		case DIALOG_STYLE_TABLIST:
+		case DIALOG_STYLE_TABLIST_HEADERS:
 		{
 			SIZE listSize;
 			SetupList(m_szContent, &listSize);
@@ -370,23 +383,15 @@ void CDialog::Show(int iID, int iStyle, char* szCaption,
 			if (iListHeight < 200) iListHeight = 200;
 			if (iListHeight > 400) iListHeight = 400;
 
-			m_iHeight = m_iButtonHeight + m_pDialog->GetCaptionHeight() + iListHeight + 15;
+			// content margin, list, gap, buttons, bottom margin
+			m_iHeight = DIALOG_CONTENT_MARGIN + iListHeight + m_iButtonHeight + 30;
 
-			m_pListBox->SetLocation(5, 5);
+			m_pListBox->SetLocation(5, DIALOG_CONTENT_MARGIN);
 			m_pListBox->SetSize(m_iWidth - 10, iListHeight);
 			m_pListBox->SetVisible(true);
 			m_pListBox->SetEnabled(true);
-
-			m_pEditBox->SetVisible(false);
-			m_pEditBox->SetEnabled(false);
 			break;
 		}
-		case DIALOG_STYLE_PASSWORD:
-			break;
-		case DIALOG_STYLE_TABLIST:
-			break;
-		case DIALOG_STYLE_TABLIST_HEADERS:
-			break;
 		}
 
 		CDXUTButton* pButton1 = m_pDialog->GetButton(IDC_DLGBUTTON1);

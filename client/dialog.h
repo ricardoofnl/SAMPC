@@ -5,6 +5,10 @@
 #define IDC_DLGBUTTON1 20
 #define IDC_DLGBUTTON2 21
 
+// dxut draws the caption above the client area, so control coordinates start
+// right under it and only need a small margin
+#define DIALOG_CONTENT_MARGIN 8
+
 #define DIALOG_STYLE_MSGBOX 0
 #define DIALOG_STYLE_INPUT 1
 #define DIALOG_STYLE_LIST 2
