@@ -108,6 +108,74 @@ static void DumpMemory(FILE* f, BYTE* pData, DWORD dwCount, BOOL bAsDWords = FAL
 	}
 }
 
+static BOOL IsReadable(const void* p, DWORD dwSize)
+{
+	MEMORY_BASIC_INFORMATION mbi;
+
+	if (!p || VirtualQuery(p, &mbi, sizeof(mbi)) == 0)
+		return FALSE;
+	if (mbi.State != MEM_COMMIT || (mbi.Protect & PAGE_NOACCESS) || (mbi.Protect & PAGE_GUARD))
+		return FALSE;
+
+	return ((BYTE*)p + dwSize) <= ((BYTE*)mbi.BaseAddress + mbi.RegionSize);
+}
+
+// CPools keeps its pool pointers in one table, and a pointer that should be a pool
+// slot but isn't tells us the difference between corruption and a stale pointer
+static void DumpGamePools(FILE* f)
+{
+	static const struct { DWORD dwPtr; const char* szName; } pools[] = {
+		{ 0xB74484, "PtrNodeSingle"   }, { 0xB74488, "PtrNodeDouble"  },
+		{ 0xB7448C, "EntryInfoNode"   }, { 0xB74490, "Ped"            },
+		{ 0xB74494, "Vehicle"         }, { 0xB74498, "Building"       },
+		{ 0xB7449C, "Object"          }, { 0xB744A0, "Dummy"          },
+		{ 0xB744A4, "ColModel"        }, { 0xB744A8, "Task"           },
+		{ 0xB744AC, "Event"           }, { 0xB744C0, "PedIntelligence"},
+		{ 0xB744C4, "PedAttractor"    },
+	};
+
+	fputs("\nGame Pools:\n", f);
+
+	for (int i = 0; i < (int)(sizeof(pools) / sizeof(pools[0])); i++) {
+		DWORD* pPool = *(DWORD**)pools[i].dwPtr;
+
+		if (!IsReadable(pPool, 0x14)) {
+			fprintf_s(f, "%-16s P: 0x%08X\t-unreadable-\n", pools[i].szName, (DWORD)pPool);
+			continue;
+		}
+		fprintf_s(f, "%-16s P: 0x%08X\tO: 0x%08X\tM: 0x%08X\tN: %d\tF: %d\n",
+			pools[i].szName, (DWORD)pPool, pPool[0], pPool[1], pPool[2], pPool[3]);
+	}
+	fflush(f);
+}
+
+static void DumpLocalPed(FILE* f)
+{
+	DWORD dwPed = *(DWORD*)0xB7CD98;
+
+	fputs("\nLocal Ped:\n", f);
+
+	if (!IsReadable((void*)dwPed, 0x7A4)) {
+		fprintf_s(f, "CWorld::Players[0].m_pPed: 0x%08X\t-unreadable-\n", dwPed);
+		fflush(f);
+		return;
+	}
+
+	DWORD dwIntel = *(DWORD*)(dwPed + 0x47C);
+
+	fprintf_s(f, "ped: 0x%08X\tvtbl: 0x%08X\ttype: %d\tintelligence: 0x%08X\n",
+		dwPed, *(DWORD*)dwPed, *(DWORD*)(dwPed + 0x598), dwIntel);
+
+	if (IsReadable((void*)dwIntel, 0x40)) {
+		fprintf_s(f, "intelligence->m_pPed: 0x%08X\nintelligence dump:\n",
+			*(DWORD*)dwIntel);
+		DumpMemory(f, (BYTE*)dwIntel, 0x40, TRUE);
+	} else {
+		fputs("intelligence -unreadable-\n", f);
+	}
+	fflush(f);
+}
+
 static void DumpMain()
 {
 	SYSTEMTIME t;
@@ -225,6 +293,9 @@ static void DumpMain()
 		else
 			fputs("-Not initialized-\n", f);
 		fflush(f);
+
+		DumpGamePools(f);
+		DumpLocalPed(f);
 
 		if(iGtaVersion == GTASA_VERSION_USA10)
 			fputs("\nGame Version: US 1.0\n", f);
