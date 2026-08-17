@@ -22,6 +22,9 @@ CDialog::CDialog(IDirect3DDevice9* pDevice)
 	m_iDialogStyle = 0;
 	m_bSendResponse = false;
 	m_bVisible = false;
+	m_iHeaderColumns = 0;
+	memset(m_szHeaders, 0, sizeof(m_szHeaders));
+	memset(m_iHeaderOffset, 0, sizeof(m_iHeaderOffset));
 }
 
 void CDialog::ResetDialogControls()
@@ -66,7 +69,7 @@ void CDialog::ResetDialogControls()
 
 // the dxut skin texture is greyscale, so tinting an element per state is enough
 // to pull the whole control onto the dark panel palette
-static void TintElement(CDXUTElement* pElement, D3DCOLOR normal,
+void TintElement(CDXUTElement* pElement, D3DCOLOR normal,
 	D3DCOLOR mouseover, D3DCOLOR pressed, D3DCOLOR text)
 {
 	if (!pElement) return;
@@ -310,6 +313,26 @@ void CDialog::Draw()
 		pDefaultFont->RenderSmallerText(NULL, m_szContent, rect,
 			DT_EXPANDTABS, DLG_COL_CONTENT, true);
 	}
+	else if (m_iDialogStyle == DIALOG_STYLE_TABLIST_HEADERS && m_iHeaderColumns)
+	{
+		RECT rect;
+		GetRect(&rect);
+
+		int iTop = rect.top + iCaptionHeight + DIALOG_CONTENT_MARGIN;
+
+		for (int i = 0; i < m_iHeaderColumns; i++)
+		{
+			RECT header;
+
+			header.left = rect.left + DIALOG_SIDE_MARGIN + 4 + m_iHeaderOffset[i];
+			header.right = rect.right - DIALOG_SIDE_MARGIN;
+			header.top = iTop;
+			header.bottom = iTop + (int)GetFontHeight();
+
+			pDefaultFont->RenderSmallerText(NULL, m_szHeaders[i], header,
+				DT_LEFT, DLG_COL_TEXT, true);
+		}
+	}
 }
 
 LONG CDialog::GetTextWidth(char* szText)
@@ -353,18 +376,59 @@ static char* CopyDialogLine(char* szText, char* szOut, size_t uiOutSize)
 
 //----------------------------------------------------
 
+// splits a line on tabs, returns how many columns it found
+static int SplitDialogColumns(char* szLine, char szColumns[MAX_LISTBOX_COLUMNS + 1][MAX_LISTBOX_TEXT_IN_COLUMN])
+{
+	int iColumn = 0;
+	size_t iOut = 0;
+
+	for (int i = 0; i <= MAX_LISTBOX_COLUMNS; i++)
+		szColumns[i][0] = '\0';
+
+	for (size_t i = 0; szLine[i]; i++)
+	{
+		if (szLine[i] == '\t')
+		{
+			szColumns[iColumn][iOut] = '\0';
+			if (iColumn == MAX_LISTBOX_COLUMNS) break;
+			iColumn++;
+			iOut = 0;
+			continue;
+		}
+
+		if (iOut < (MAX_LISTBOX_TEXT_IN_COLUMN - 1))
+			szColumns[iColumn][iOut++] = szLine[i];
+	}
+	szColumns[iColumn][iOut] = '\0';
+
+	return iColumn + 1;
+}
+
+//----------------------------------------------------
+
 // fills the list box from the newline separated content and reports back the size
-// it wants, the original measures and populates in the same pass
+// it wants, the original measures and populates in the same pass. tab separated
+// lines become real list box columns, otherwise the trailing ones get clipped
 void CDialog::SetupList(char* szContent, SIZE* pSize)
 {
+	bool bColumns = (m_iDialogStyle == DIALOG_STYLE_TABLIST ||
+					 m_iDialogStyle == DIALOG_STYLE_TABLIST_HEADERS);
+
 	m_pListBox->RemoveAllItems();
 	m_pListBox->m_nColumns = 0;
 
 	char szLine[256];
+	char szColumns[MAX_LISTBOX_COLUMNS + 1][MAX_LISTBOX_TEXT_IN_COLUMN];
+	int iColumnWidth[MAX_LISTBOX_COLUMNS + 1] = { 0 };
+	int iUsedColumns = 1;
+
 	char* pText = szContent;
 	int iMaxWidth = 0;
 	int iTotalHeight = 0;
 	int iIndex = 0;
+
+	// headers style spends its first line on the column titles
+	bool bWantHeader = (m_iDialogStyle == DIALOG_STYLE_TABLIST_HEADERS);
 
 	while (pText && *pText)
 	{
@@ -373,22 +437,73 @@ void CDialog::SetupList(char* szContent, SIZE* pSize)
 
 		if (strlen(szLine))
 		{
-			LONG lWidth = GetTextWidth(szLine);
-			if (lWidth > iMaxWidth) iMaxWidth = (int)lWidth;
+			if (bColumns)
+			{
+				int iCount = SplitDialogColumns(szLine, szColumns);
+				if (iCount > iUsedColumns) iUsedColumns = iCount;
 
-			iTotalHeight += GetFontHeight();
-			m_pListBox->AddItem(szLine, iIndex, (D3DCOLOR)-1);
+				for (int i = 0; i < iCount; i++)
+				{
+					LONG lWidth = GetTextWidth(szColumns[i]);
+					if (lWidth > iColumnWidth[i]) iColumnWidth[i] = (int)lWidth;
+				}
+
+				if (bWantHeader)
+				{
+					// the titles are drawn above the list, not as a row
+					memcpy(m_szHeaders, szColumns, sizeof(m_szHeaders));
+					m_iHeaderColumns = iCount;
+					bWantHeader = false;
+					continue;
+				}
+
+				iTotalHeight += GetFontHeight();
+				m_pListBox->AddItem(szColumns[0], iIndex, (D3DCOLOR)-1);
+			}
+			else
+			{
+				LONG lWidth = GetTextWidth(szLine);
+				if (lWidth > iMaxWidth) iMaxWidth = (int)lWidth;
+
+				iTotalHeight += GetFontHeight();
+				m_pListBox->AddItem(szLine, iIndex, (D3DCOLOR)-1);
+			}
 
 			// CDXUTListBox::Render draws the selection sprite unless the item is
 			// forced unselected, so without this every row comes out highlighted
 			DXUTListBoxItem* pItem = m_pListBox->GetItem(iIndex);
 			if (pItem) pItem->bForceUnselected = true;
 
+			if (bColumns)
+			{
+				for (int i = 1; i < iUsedColumns; i++)
+					m_pListBox->AddItemToColumn(iIndex, i - 1, szColumns[i]);
+			}
+
 			iIndex++;
 		}
 
 		if (!*pText) break;
 		if (*pText == '\n') pText++;
+	}
+
+	if (bColumns)
+	{
+		// AddItemToColumn only accepts columns below m_nColumns, so it is set
+		// before the widths are handed out
+		m_pListBox->m_nColumns = iUsedColumns - 1;
+
+		iMaxWidth = 0;
+		for (int i = 0; i < iUsedColumns; i++)
+		{
+			int iWidth = iColumnWidth[i] + DIALOG_COLUMN_GAP;
+
+			if (i < MAX_LISTBOX_COLUMNS)
+				m_pListBox->m_nColumnWidth[i] = iWidth;
+
+			iMaxWidth += iWidth;
+			m_iHeaderOffset[i] = (i == 0) ? 0 : m_iHeaderOffset[i - 1] + iColumnWidth[i - 1] + DIALOG_COLUMN_GAP;
+		}
 	}
 
 	if (pSize)
@@ -494,6 +609,7 @@ void CDialog::Show(int iID, int iStyle, char* szCaption,
 		m_iDialogID = iID;
 		m_iDialogStyle = iStyle;
 		m_bSendResponse = bSendResponse;
+		m_iHeaderColumns = 0;
 
 		SecureZeroMemory(m_szCaption, sizeof(m_szCaption));
 		strncpy_s(m_szCaption, szCaption, _TRUNCATE);
@@ -573,6 +689,10 @@ void CDialog::Show(int iID, int iStyle, char* szCaption,
 			iListHeight = listSize.cy + (2 * (int)GetFontHeight());
 			if (iListHeight < 120) iListHeight = 120;
 			if (iListHeight > 400) iListHeight = 400;
+
+			// the header row is drawn above the list, so it needs its own space
+			if (m_iHeaderColumns)
+				iRowTop += (int)GetFontHeight() + 4;
 
 			iListTop = iRowTop;
 

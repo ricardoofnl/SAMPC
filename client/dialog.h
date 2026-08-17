@@ -12,6 +12,8 @@
 // vertical gap between the content block, the control under it and the buttons
 #define DIALOG_ROW_GAP        10
 #define DIALOG_CORNER_RADIUS  8
+// breathing room between tablist columns
+#define DIALOG_COLUMN_GAP     18
 
 // sizes measured off the original 0.3.7-R5 dialog
 #define DIALOG_BUTTON_WIDTH  96
@@ -35,6 +37,10 @@
 #define DIALOG_STYLE_TABLIST 4
 #define DIALOG_STYLE_TABLIST_HEADERS 5
 
+// shared so the scoreboard can sit on the same palette
+void TintElement(CDXUTElement* pElement, D3DCOLOR normal,
+	D3DCOLOR mouseover, D3DCOLOR pressed, D3DCOLOR text);
+
 class CDialog
 {
 private:
@@ -55,6 +61,11 @@ private:
 	SIZE m_ContentSize;
 	char m_szCaption[64];
 	bool m_bSendResponse;
+
+	// tablist headers style draws its first line above the list instead of in it
+	char m_szHeaders[MAX_LISTBOX_COLUMNS + 1][MAX_LISTBOX_TEXT_IN_COLUMN];
+	int m_iHeaderOffset[MAX_LISTBOX_COLUMNS + 1];
+	int m_iHeaderColumns;
 
 public:
 	CDialog(IDirect3DDevice9* pDevice);
