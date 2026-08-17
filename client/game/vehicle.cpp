@@ -1120,6 +1120,9 @@ BOOL CVehicle::VerifyInstance()
 
 void CVehicle::ToggleWindow(unsigned char ucDoorId, bool bClosed)
 {
+	// 0x6D30B5 is "mov ecx, [ecx+18h]", it reads the RwObject straight off this
+	if(!m_pVehicle) return;
+
 	DWORD dwThis = (DWORD)m_pVehicle;
 	DWORD dwFunc = bClosed ? (0x6D30B0) : (0x6D3080);
 	DWORD dwDoorId = (DWORD)ucDoorId;

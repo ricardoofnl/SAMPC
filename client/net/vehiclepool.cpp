@@ -337,11 +337,6 @@ void CVehiclePool::ApplyParams(VEHICLEID VehicleID)
 	else if(pParams->byteBackRightDoor == VEHICLE_PARAMS_OFF)
 		pVehicle->ToggleDoor(5, 9, 0.0f);
 
-	// TODO: Need checking at and add model filtering here and/or server
-	// Seems like it works on most of the vehicles, but on some vehicles it crashes the game,
-	// with gta_sa.exe:0x6D30B5 crash address. ecx at [ecx+18h] looks like not initialized.
-	if(pVehicle->GetVehicleSubtype() != VEHICLE_SUBTYPE_CAR) return;
-
 	if(pParams->byteDriverWindow == VEHICLE_PARAMS_ON)
 		pVehicle->ToggleWindow(10, true);
 	else if(pParams->byteDriverWindow == VEHICLE_PARAMS_OFF)
