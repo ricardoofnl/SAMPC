@@ -194,6 +194,25 @@ void CVehicle::SpawnForPlayer(BYTE byteForPlayerID)
 
 	pNetGame->GetRakServer()->RPC(RPC_VehicleSpawn ,&bsVehicleSpawn,HIGH_PRIORITY,RELIABLE,
 		0,pNetGame->GetRakServer()->GetPlayerIDFromIndex(byteForPlayerID),false,false);
+
+	if(HasParamsSet()) SendParams(byteForPlayerID);
+}
+
+//----------------------------------------------------------
+
+// wPlayerID == INVALID_PLAYER_ID broadcasts to everyone
+void CVehicle::SendParams(WORD wPlayerID)
+{
+	RakNet::BitStream bsParams;
+
+	bsParams.Write(m_VehicleID);
+	bsParams.Write((PCHAR)&m_Params, sizeof(VEHICLE_PARAMS));
+
+	if(wPlayerID == INVALID_PLAYER_ID) {
+		pNetGame->SendToAll(RPC_VehicleParams, &bsParams);
+	} else {
+		pNetGame->SendToPlayer(wPlayerID, RPC_VehicleParams, &bsParams);
+	}
 }
 
 //----------------------------------------------------------

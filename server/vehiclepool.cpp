@@ -195,12 +195,7 @@ void CVehiclePool::InitVehicleForPlayer(VEHICLEID VehicleID, WORD wPlayerID)
 
 	if (pVehicle->HasParamsSet())
 	{
-		RakNet::BitStream bsParams;
-
-		bsParams.Write(VehicleID);
-		bsParams.Write((PCHAR)&pVehicle->m_Params, sizeof(VEHICLE_PARAMS));
-
-		pNetGame->SendToPlayer(wPlayerID, RPC_VehicleParams, &bsParams);
+		pVehicle->SendParams(wPlayerID);
 	}
 }
 

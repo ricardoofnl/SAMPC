@@ -86,6 +86,7 @@ public:
 	VEHICLE_SPAWN_INFO * GetSpawnInfo() { return &m_SpawnInfo; };
 
 	void SpawnForPlayer(BYTE byteForPlayerID);
+	void SendParams(WORD wPlayerID = INVALID_PLAYER_ID);
 	void SetVehicleInterior(int iIntSet) { m_SpawnInfo.iInterior = iIntSet; };
 	void SetDead() { m_bDead = true; }; // Respawns due to death in ~10s
 	void SetHealth(float fHealth);
