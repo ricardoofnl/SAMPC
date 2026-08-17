@@ -400,26 +400,12 @@ void CVehicle::SetVirtualWorld(int iVirtualWorld)
 
 bool CVehicle::HasParamsSet()
 {
-	if (m_Params.byteAlarm != VEHICLE_PARAMS_UNSET ||
-		m_Params.byteBonnet != VEHICLE_PARAMS_UNSET ||
-		m_Params.byteBoot != VEHICLE_PARAMS_UNSET ||
-		m_Params.byteDoors != VEHICLE_PARAMS_UNSET ||
-		m_Params.byteEngine != VEHICLE_PARAMS_UNSET ||
-		m_Params.byteLights != VEHICLE_PARAMS_UNSET ||
-		m_Params.byteObjective != VEHICLE_PARAMS_UNSET ||
-		m_Params.byteSiren != VEHICLE_PARAMS_UNSET ||
-		m_Params.byteDriverDoor != VEHICLE_PARAMS_UNSET ||
-		m_Params.bytePassengerDoor != VEHICLE_PARAMS_UNSET ||
-		m_Params.byteBackLeftDoor != VEHICLE_PARAMS_UNSET ||
-		m_Params.byteBackRightDoor != VEHICLE_PARAMS_UNSET ||
-		m_Params.byteDriverWindow != VEHICLE_PARAMS_UNSET ||
-		m_Params.bytePassengerWindow != VEHICLE_PARAMS_UNSET ||
-		m_Params.byteBackLeftWindow != VEHICLE_PARAMS_UNSET ||
-		m_Params.byteBackRightWindow != VEHICLE_PARAMS_UNSET)
-	{
-		return true;
-	}
-	return false;
+	VEHICLE_PARAMS ParamsUnset;
+
+	// the fields are BYTE, so an unset one holds 0xFF and never compares equal to -1
+	memset(&ParamsUnset, VEHICLE_PARAMS_UNSET, sizeof(VEHICLE_PARAMS));
+
+	return memcmp(&m_Params, &ParamsUnset, sizeof(VEHICLE_PARAMS)) != 0;
 }
 
 //----------------------------------------------------------
