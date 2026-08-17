@@ -35,6 +35,10 @@
 #define MAX_LABEL_GLOBAL 1024
 #define MAX_LABEL_PLAYER 1024
 #define MAX_DIALOG_CAPTION 64
+// wire buffers, each string is length prefixed with a BYTE except the info blob
+#define MAX_DIALOG_BUTTON 256
+#define MAX_DIALOG_INFO 4096
+#define MAX_DIALOG_RESPONSE_TEXT 128
 #define MAX_LICENSE_PLATE_TEXT 32
 #define INVALID_PLAYER_ID_EX 65535
 #define INVALID_VEHICLE_ID 0xFFFF
@@ -42,6 +46,7 @@
 #define INVALID_TEXT_DRAW 0xFFFF
 #define INVALID_PLAYER_TEXT_DRAW 0xFFFF
 #define INVALID_ACTOR_ID 0xFFFF
+#define INVALID_DIALOG_ID 0xFFFF
 #define INVALID_LABEL_ID 0xFFFF // INVALID_3DTEXT_ID
 
 #define RPC_PING_UPDATE_TIME 3000 // in ms (3 seconds)

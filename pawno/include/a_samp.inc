@@ -551,3 +551,14 @@ forward OnPlayerGiveDamageActor(playerid, damaged_actorid, Float:amount, weaponi
 
 #define CLICK_SOURCE_SCOREBOARD		0
 forward OnPlayerClickPlayer(playerid, clickedplayerid, source);
+
+#define DIALOG_STYLE_MSGBOX				0
+#define DIALOG_STYLE_INPUT				1
+#define DIALOG_STYLE_LIST				2
+#define DIALOG_STYLE_PASSWORD			3
+#define DIALOG_STYLE_TABLIST			4
+#define DIALOG_STYLE_TABLIST_HEADERS	5
+
+// a negative dialogid hides whatever the player has open
+native ShowPlayerDialog(playerid, dialogid, style, const caption[], const info[], const button1[], const button2[]);
+forward OnDialogResponse(playerid, dialogid, response, listitem, inputtext[]);

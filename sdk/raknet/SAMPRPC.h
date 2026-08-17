@@ -158,6 +158,8 @@ enum
 	RPC_ScrClearActorAnimation,
 	RPC_ScrDisableVehicleCollision,
 	RPC_ScrClickTextDraw,
+	RPC_ScrShowDialog,
+	RPC_ScrDialogResponse,
 
 	MAX_RPC_UNIQUE_ID, // Don't use it, and leave it as last constant
 };

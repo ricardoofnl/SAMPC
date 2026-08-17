@@ -6118,6 +6118,76 @@ static cell n_SetMenuColumnHeader(AMX *amx, cell *params)
 	return 1;
 }
 
+// native ShowPlayerDialog(playerid, dialogid, style, caption[], info[], button1[], button2[])
+static cell n_ShowPlayerDialog(AMX* amx, cell* params)
+{
+	CHECK_PARAMS(amx, "ShowPlayerDialog", 7);
+
+	CPlayerPool* pPlayerPool = pNetGame->GetPlayerPool();
+	if (!pPlayerPool || !pPlayerPool->GetSlotState(params[1]))
+		return 0;
+
+	CPlayer* pPlayer = pPlayerPool->GetAt(params[1]);
+	if (!pPlayer)
+		return 0;
+
+	// a negative id hides whatever is open, the client takes the same branch
+	if (params[2] < 0)
+	{
+		RakNet::BitStream bsHide;
+
+		bsHide.Write((WORD)INVALID_DIALOG_ID);
+		pNetGame->SendToPlayer(params[1], RPC_ScrShowDialog, &bsHide);
+
+		pPlayer->m_wDialogID = INVALID_DIALOG_ID;
+		return 1;
+	}
+
+	char* szCaption;
+	char* szInfo;
+	char* szButton1;
+	char* szButton2;
+
+	amx_StrParam(amx, params[4], szCaption);
+	amx_StrParam(amx, params[5], szInfo);
+	amx_StrParam(amx, params[6], szButton1);
+	amx_StrParam(amx, params[7], szButton2);
+
+	// the client drops the packet without both of these, so do not even send it
+	if (!szCaption || !szCaption[0] || !szInfo || !szInfo[0])
+		return 0;
+
+	if (!szButton1) szButton1 = (char*)"";
+	if (!szButton2) szButton2 = (char*)"";
+
+	size_t uiCaptionLen = strlen(szCaption);
+	size_t uiButton1Len = strlen(szButton1);
+	size_t uiButton2Len = strlen(szButton2);
+	size_t uiInfoLen = strlen(szInfo);
+
+	if (uiCaptionLen > 255) uiCaptionLen = 255;
+	if (uiButton1Len > 255) uiButton1Len = 255;
+	if (uiButton2Len > 255) uiButton2Len = 255;
+	if (uiInfoLen >= MAX_DIALOG_INFO) uiInfoLen = MAX_DIALOG_INFO - 1;
+
+	RakNet::BitStream bsSend;
+
+	bsSend.Write((WORD)params[2]);
+	bsSend.Write((BYTE)params[3]);
+	bsSend.Write((BYTE)uiCaptionLen);
+	bsSend.Write(szCaption, uiCaptionLen);
+	bsSend.Write((BYTE)uiButton1Len);
+	bsSend.Write(szButton1, uiButton1Len);
+	bsSend.Write((BYTE)uiButton2Len);
+	bsSend.Write(szButton2, uiButton2Len);
+
+	stringCompressor->EncodeString(szInfo, uiInfoLen + 1, &bsSend);
+
+	pPlayer->m_wDialogID = (WORD)params[2];
+
+	return (cell)pNetGame->SendToPlayer(params[1], RPC_ScrShowDialog, &bsSend);
+}
+
 // native ShowMenuForPlayer(Menu:menuid, playerid);
 static cell n_ShowMenuForPlayer(AMX *amx, cell *params)
 {
@@ -8675,6 +8745,7 @@ AMX_NATIVE_INFO custom_Natives[] =
 	{ "AddMenuItem",			n_AddMenuItem },
 	{ "SetMenuColumnHeader",	n_SetMenuColumnHeader },
 	{ "ShowMenuForPlayer",		n_ShowMenuForPlayer },
+	DEFINE_NATIVE(ShowPlayerDialog),
 	{ "HideMenuForPlayer",		n_HideMenuForPlayer },
 	{ "IsValidMenu",			n_IsValidMenu },
 	{ "DisableMenu",			n_DisableMenu },

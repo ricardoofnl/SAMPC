@@ -267,6 +267,13 @@ LRESULT APIENTRY NewWndProc( HWND hwnd,UINT uMsg,
 		}
 	}
 
+	// before the scoreboard, an open dialog owns the keyboard
+	if (pDialog && !pGame->IsMenuActive())
+	{
+		if (pDialog->HandleInput(hwnd, uMsg, wParam, lParam))
+			return 0;
+	}
+
 	if (pScoreBoard)
 	{
 		if (!pGame->IsMenuActive() && uMsg == WM_KEYUP && wParam == VK_TAB)

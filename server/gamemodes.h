@@ -93,6 +93,7 @@ public:
 	void OnActorStreamOut(cell actorid, cell forplayerid);
 	void OnPlayerGiveDamageActor(cell playerid, cell actorid, float fDamage, cell weaponid, cell bodypart);
 	void OnPlayerClickPlayer(cell playerid, cell clickedplayerid, cell source);
+	int OnDialogResponse(cell playerid, cell dialogid, cell response, cell listitem, char* szInputText);
 	void OnPlayerClickTextDraw(cell playerid, cell text);
 	void OnPlayerClickPlayerTextDraw(cell playerid, cell playertext);
 };

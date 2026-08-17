@@ -132,6 +132,7 @@ extern CSpawnScreen* pSpawnScreen;
 extern CFontRender* pDefaultFont;
 extern CPlayerTags* pPlayerTags;
 extern CScoreBoard* pScoreBoard;
+extern CDialog* pDialog;
 extern CLabel* pLabel;
 extern CNetStats* pNetStats;
 //extern CSvrNetStats* pSvrNetStats;

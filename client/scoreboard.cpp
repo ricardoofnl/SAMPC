@@ -62,7 +62,8 @@ void CScoreBoard::ResetDialogControls()
 		m_pDialog->SetCallback(OnScoreBoardEvent);
 		m_pDialog->SetSize((int)m_fWidth, (int)m_fHeight);
 		m_pDialog->SetLocation(0, 0);
-		m_pDialog->SetBackgroundColors(D3DCOLOR_ARGB(150,10,10,10));
+		// the rounded panel is drawn in Draw(), so the square quad stays off
+		m_pDialog->SetBackgroundColors(D3DCOLOR_ARGB(0, 0, 0, 0));
 		m_pDialog->EnableMouseInput(true);
 		m_pDialog->EnableKeyboardInput(true);
 		m_pDialog->SetVisible(false);
@@ -73,7 +74,13 @@ void CScoreBoard::ResetDialogControls()
 		m_pListBox->SetLocation(0, (int)m_fHeaderHeight);
 		m_pListBox->SetSize((int)m_fWidth, (int)(m_fHeight - m_fHeaderHeight));
 		m_pListBox->OnInit();
-		m_pListBox->GetElement(0)->TextureColor.Init(D3DCOLOR_ARGB(200,255,255,255));
+		// same palette the dialog uses, 0 is the surface and 1 the selection bar
+		TintElement(m_pListBox->GetElement(0),
+			DLG_COL_PANEL, DLG_COL_PANEL, DLG_COL_PANEL, DLG_COL_TEXT);
+		TintElement(m_pListBox->GetElement(1),
+			DLG_COL_ACCENT, DLG_COL_ACCENT, DLG_COL_ACCENT, DLG_COL_TEXT);
+		TintElement(m_pDialog->GetCaptionElement(),
+			DLG_COL_HEADER, DLG_COL_HEADER, DLG_COL_HEADER, DLG_COL_TEXT);
 		m_pListBox->m_nColumns = 3;
 		m_pListBox->m_nColumnWidth[0] = (int)(m_fNameOffset * m_fWidth);
 		m_pListBox->m_nColumnWidth[1] = (int)(m_fScoreOffset * m_fWidth);
@@ -207,6 +214,10 @@ void CScoreBoard::UpdateList()
 		sprintf_s(szBuffer, "%u", Players[x].dwId);
 		m_pListBox->AddItem(szBuffer, Players[x].dwId, Players[x].dwColor);
 
+		// otherwise CDXUTListBox::Render highlights every row, see CDialog::SetupList
+		DXUTListBoxItem* pRow = m_pListBox->GetItem(x);
+		if (pRow) pRow->bForceUnselected = true;
+
 		if (m_pListBox->GetItem(x) && Players[x].szName[0] != '\0')
 		{
 			m_pListBox->AddItemToColumn(x, 0, Players[x].szName);
@@ -291,6 +302,14 @@ void CScoreBoard::Draw()
 				iWidth / 2 - (int)m_fWidth / 2,
 				iHeight / 2 - (int)m_fHeight / 2);
 		}
+
+		// same rounded surface the dialogs use, the header strip is the band the
+		// hostname and column titles are drawn over
+		RECT panel;
+		GetRect(&panel);
+		DrawRoundedPanel(m_pDevice, &panel, (int)m_fHeaderHeight,
+			DLG_COL_PANEL, DLG_COL_HEADER);
+
 		m_pDialog->OnRender(10.0f);
 	}
 

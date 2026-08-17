@@ -249,6 +249,7 @@ HRESULT __stdcall IDirect3DDevice9Hook::Present(CONST RECT* pSourceRect, CONST R
 			if (pCmdWindow) pCmdWindow->Draw();
 			if (pDeathWindow) pDeathWindow->Draw();
 			if (pGameUI) pGameUI->OnRender(10.0f);
+			if (pDialog) pDialog->Draw();
 			if (pSpawnScreen) pSpawnScreen->Draw();
 			if (pTextDrawSelect) pTextDrawSelect->Process();
 		}

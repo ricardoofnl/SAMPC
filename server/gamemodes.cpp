@@ -1072,6 +1072,31 @@ void CGameMode::OnPlayerClickPlayer(cell playerid, cell clickedplayerid, cell so
 }
 
 //---------------------------------------------------------------------------------
+// forward OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
+
+int CGameMode::OnDialogResponse(cell playerid, cell dialogid, cell response, cell listitem, char* szInputText)
+{
+	int idx = 0;
+	cell ret = 1;
+
+	if (!m_bInitialised)
+		return 0;
+
+	if (!amx_FindPublic(&m_amx, "OnDialogResponse", &idx))
+	{
+		cell amx_addr, *phys_addr;
+		amx_PushString(&m_amx, &amx_addr, &phys_addr, szInputText, 0, 0);
+		amx_Push(&m_amx, listitem);
+		amx_Push(&m_amx, response);
+		amx_Push(&m_amx, dialogid);
+		amx_Push(&m_amx, playerid);
+		amx_Exec(&m_amx, &ret, idx);
+		amx_Release(&m_amx, amx_addr);
+	}
+	return (int)ret;
+}
+
+//---------------------------------------------------------------------------------
 // forward OnPlayerClickTextDraw(playerid, Text:clickedid);
 
 void CGameMode::OnPlayerClickTextDraw(cell playerid, cell text)

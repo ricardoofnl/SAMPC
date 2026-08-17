@@ -82,6 +82,7 @@ public:
 	bool					m_bIsNPC;
 	char					m_szSerial[100];
 	bool					m_bSelectingText;
+	WORD					m_wDialogID; // INVALID_DIALOG_ID when nothing is open
 	WORD					m_wTargetedPlayer;
 	WORD					m_wTargetedActor;
 

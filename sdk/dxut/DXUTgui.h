@@ -30,6 +30,9 @@
 // a single selection list box.
 #define EVENT_LISTBOX_SELECTION             0x0702
 
+// SA-MP addition, what a DIALOG_STYLE_PASSWORD box draws in place of the text
+#define DXUT_PASSWORD_MASK_CHAR             '*'
+
 #define MAX_LISTBOX_COLUMNS                 3
 #define MAX_LISTBOX_TEXT_IN_COLUMN          128
 
@@ -193,6 +196,7 @@ public:
     void SetCaptionHeight( int nHeight ) { m_nCaptionHeight = nHeight; }
     void SetCaptionText( const TCHAR *pwszText ) { strcpy_s(m_wszCaption,pwszText); }
     TCHAR* GetCaptionText() { return m_wszCaption; }
+    CDXUTElement* GetCaptionElement() { return &m_CapElement; }
     void GetLocation( POINT &Pt ) const { Pt.x = m_x; Pt.y = m_y; }
     void SetLocation( int x, int y ) { m_x = x; m_y = y; }
     void SetSize( int width, int height ) { m_width = width; m_height = height;  }
@@ -866,6 +870,10 @@ public:
     void SetSelectedTextColor( D3DCOLOR Color ) { m_SelTextColor = Color; }  // Selected text color
     void SetSelectedBackColor( D3DCOLOR Color ) { m_SelBkColor = Color; }  // Selected background color
     void SetCaretColor( D3DCOLOR Color ) { m_CaretColor = Color; }  // Caret color
+    // SA-MP addition, DIALOG_STYLE_PASSWORD. GetText still hands back the real
+    // text, only the rendering is masked
+    void SetPasswordMode( bool bPassword ) { m_bPasswordMode = bPassword; }
+    bool GetPasswordMode() { return m_bPasswordMode; }
     void SetBorderWidth( int nBorder ) { m_nBorder = nBorder; UpdateRects(); }  // Border of the window
     void SetSpacing( int nSpacing ) { m_nSpacing = nSpacing; UpdateRects(); }
     void ParseFloatArray( float *pNumbers, int nCount );
@@ -886,6 +894,7 @@ protected:
     double   m_dfBlink;      // Caret blink time in milliseconds
     double   m_dfLastBlink;  // Last timestamp of caret blink
     bool     m_bCaretOn;     // Flag to indicate whether caret is currently visible
+    bool     m_bPasswordMode; // SA-MP addition, render the text as mask glyphs
     int      m_nCaret;       // Caret position, in characters
     bool     m_bInsertMode;  // If true, control is in insert mode. Else, overwrite mode.
     int      m_nSelStart;    // Starting position of the selection. The caret marks the end.

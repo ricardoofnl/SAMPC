@@ -146,6 +146,7 @@ void CPlayer::Deactivate()
 	m_wTargetedPlayer = INVALID_PLAYER_ID;
 	m_wTargetedActor = INVALID_ACTOR_ID;
 	m_bSelectingText = false;
+	m_wDialogID = INVALID_DIALOG_ID;
 
 	SAFE_DELETE(m_pLabelPool);
 	m_pLabelPool = new CPlayerLabelPool();

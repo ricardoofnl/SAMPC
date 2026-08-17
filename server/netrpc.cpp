@@ -1120,6 +1120,58 @@ static void ScrClickTextDraw(RPCParameters* rpcParams)
 
 //----------------------------------------------------
 
+static void ScrDialogResponse(RPCParameters* rpcParams)
+{
+	CPlayerPool* pPlayerPool = pNetGame->GetPlayerPool();
+
+	if (pNetGame->GetGameState() != GAMESTATE_RUNNING) return;
+	if (!pPlayerPool) return;
+
+	WORD wPlayerID = (WORD)rpcParams->senderId;
+
+	CPlayer* pPlayer = pPlayerPool->GetAt(wPlayerID);
+	if (!pPlayer) return;
+
+	RakNet::BitStream bsData(rpcParams);
+
+	WORD wDialogID = INVALID_DIALOG_ID;
+	BYTE byteResponse = 0;
+	WORD wListItem = 0xFFFF;
+	BYTE byteTextLen = 0;
+	char szInputText[MAX_DIALOG_RESPONSE_TEXT + 1];
+
+	if (!bsData.Read(wDialogID)) return;
+	if (!bsData.Read(byteResponse)) return;
+	if (!bsData.Read(wListItem)) return;
+	if (!bsData.Read(byteTextLen)) return;
+
+	if (byteTextLen > MAX_DIALOG_RESPONSE_TEXT) return;
+
+	if (byteTextLen && !bsData.Read(szInputText, byteTextLen)) return;
+	szInputText[byteTextLen] = '\0';
+
+	// a response only counts for the dialog this player was actually shown, so a
+	// crafted packet cannot fire the callback whenever it likes
+	if (pPlayer->m_wDialogID == INVALID_DIALOG_ID || pPlayer->m_wDialogID != wDialogID)
+		return;
+
+	pPlayer->m_wDialogID = INVALID_DIALOG_ID;
+
+	CFilterScripts* pFilterScripts = pNetGame->GetFilterScripts();
+	CGameMode* pGameMode = pNetGame->GetGameMode();
+
+	if (!pFilterScripts ||
+		!pFilterScripts->OnDialogResponse(wPlayerID, wDialogID, byteResponse, (cell)(short)wListItem, szInputText))
+	{
+		if (pGameMode)
+		{
+			pGameMode->OnDialogResponse(wPlayerID, wDialogID, byteResponse, (cell)(short)wListItem, szInputText);
+		}
+	}
+}
+
+//----------------------------------------------------
+
 void RegisterRPCs(RakServerInterface * pRakServer)
 {
 	pRak = pRakServer;
@@ -1149,6 +1201,7 @@ void RegisterRPCs(RakServerInterface * pRakServer)
 	REGISTER_STATIC_RPC(pRakServer, ActorDamage);
 	REGISTER_STATIC_RPC(pRakServer, Click);
 	REGISTER_STATIC_RPC(pRakServer, ScrClickTextDraw);
+	REGISTER_STATIC_RPC(pRakServer, ScrDialogResponse);
 }
 
 //----------------------------------------------------
