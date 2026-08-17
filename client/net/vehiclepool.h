@@ -36,6 +36,7 @@ public:
 	VEHICLE_SPAWN_INFO	m_SpawnInfo[MAX_VEHICLES];
 	VEHICLE_OPEN_CLOSE_FLAG m_Windows[MAX_VEHICLES];
 	VEHICLE_OPEN_CLOSE_FLAG m_Doors[MAX_VEHICLES];
+	VEHICLE_PARAMS		m_Params[MAX_VEHICLES];
 
 	int					m_iRespawnDelay[MAX_VEHICLES];
 	int					m_iVirtualWorld[MAX_VEHICLES];
@@ -86,6 +87,9 @@ public:
 	int FindNearestToLocalPlayerPed();
 
 	void AssignSpecialParamsToVehicle(VEHICLEID VehicleID, BYTE byteObjective, BYTE byteDoorsLocked);
+
+	void ResetParams(VEHICLEID VehicleID);
+	void ApplyParams(VEHICLEID VehicleID);
 	
 	int GetVehicleVirtualWorld(VEHICLEID VehicleID) const {
 		if (VehicleID >= MAX_VEHICLES) { return 0; }

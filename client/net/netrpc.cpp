@@ -1115,106 +1115,19 @@ static void DestroyLabel(RPCParameters* rpcParams)
 static void VehicleParams(RPCParameters* rpcParams)
 {
 	VEHICLEID VehicleID = INVALID_VEHICLE_ID;
-	VEHICLE_PARAMS Params;
-	CVehicle* pVehicle;
+	CVehiclePool* pVehiclePool = pNetGame->GetVehiclePool();
 
-	if (pNetGame->GetVehiclePool() &&
-		rpcParams->numberOfBitsOfData == 144)
+	if (pVehiclePool && rpcParams->numberOfBitsOfData == 144)
 	{
 		RakNet::BitStream bsData(rpcParams);
-		
+
 		bsData.Read(VehicleID);
-		
-		pVehicle = pNetGame->GetVehiclePool()->GetAt(VehicleID);
-		if (pVehicle)
+
+		if (VehicleID < MAX_VEHICLES)
 		{
-			bsData.Read((PCHAR)&Params, sizeof(VEHICLE_PARAMS));
+			bsData.Read((PCHAR)&pVehiclePool->m_Params[VehicleID], sizeof(VEHICLE_PARAMS));
 
-			if (Params.byteEngine == VEHICLE_PARAMS_ON)
-				pVehicle->SetEngine(true);
-			else if (Params.byteEngine == VEHICLE_PARAMS_OFF)
-				pVehicle->SetEngine(false);
-
-			if (Params.byteLights == VEHICLE_PARAMS_ON)
-				pVehicle->SetLights(true);
-			else if (Params.byteLights == VEHICLE_PARAMS_OFF)
-				pVehicle->SetLights(false);
-
-			if (Params.byteDoors == VEHICLE_PARAMS_ON)
-				pVehicle->SetDoorState(1);
-			else if (Params.byteDoors == VEHICLE_PARAMS_OFF)
-				pVehicle->SetDoorState(0);
-
-			if (Params.byteObjective == VEHICLE_PARAMS_ON)
-				pVehicle->SetObjective(true);
-			else if (Params.byteObjective == VEHICLE_PARAMS_OFF)
-				pVehicle->SetObjective(false);
-
-			if (Params.byteBoot == VEHICLE_PARAMS_ON)
-				pVehicle->ToggleDoor(1, 17, 1.0f);
-			else if (Params.byteBoot == VEHICLE_PARAMS_OFF)
-				pVehicle->ToggleDoor(1, 17, 0.0f);
-
-			if (Params.byteBonnet == VEHICLE_PARAMS_ON)
-				pVehicle->ToggleDoor(1, 16, 1.0f);
-			else if (Params.byteBonnet == VEHICLE_PARAMS_OFF)
-				pVehicle->ToggleDoor(1, 16, 0.0f);
-
-			if (Params.byteAlarm == VEHICLE_PARAMS_ON)
-			{
-				pVehicle->SetSirenOn(TRUE);
-				pVehicle->SetAlarmState(20000);
-			}
-			else if (Params.byteAlarm == VEHICLE_PARAMS_OFF)
-			{
-				pVehicle->SetSirenOn(FALSE);
-				pVehicle->SetAlarmState(0);
-			}
-
-			if (Params.byteSiren == VEHICLE_PARAMS_ON)
-				pVehicle->SetSirenOn(TRUE);
-			else if (Params.byteSiren == VEHICLE_PARAMS_OFF)
-				pVehicle->SetSirenOn(FALSE);
-
-			if (Params.byteDriverDoor == VEHICLE_PARAMS_ON)
-				pVehicle->ToggleDoor(2, 10, 1.0f);
-			else if (Params.byteDriverDoor == VEHICLE_PARAMS_OFF)
-				pVehicle->ToggleDoor(2, 10, 0.0f);
-
-			if (Params.bytePassengerDoor == VEHICLE_PARAMS_ON)
-				pVehicle->ToggleDoor(3, 8, 1.0f);
-			else if (Params.bytePassengerDoor == VEHICLE_PARAMS_OFF)
-				pVehicle->ToggleDoor(3, 8, 0.0f);
-
-			if (Params.byteBackLeftDoor == VEHICLE_PARAMS_ON)
-				pVehicle->ToggleDoor(4, 11, 1.0f);
-			else if (Params.byteBackLeftDoor == VEHICLE_PARAMS_OFF)
-				pVehicle->ToggleDoor(4, 11, 0.0f);
-
-			if (Params.byteBackRightDoor == VEHICLE_PARAMS_ON)
-				pVehicle->ToggleDoor(5, 9, 1.0f);
-			else if (Params.byteBackRightDoor == VEHICLE_PARAMS_OFF)
-				pVehicle->ToggleDoor(5, 9, 0.0f);
-
-			if (Params.byteDriverWindow == VEHICLE_PARAMS_ON)
-				pVehicle->ToggleWindow(10, true);
-			else if (Params.byteDriverWindow == VEHICLE_PARAMS_OFF)
-				pVehicle->ToggleWindow(10, false);
-
-			if (Params.bytePassengerWindow == VEHICLE_PARAMS_ON)
-				pVehicle->ToggleWindow(8, true);
-			else if (Params.bytePassengerWindow == VEHICLE_PARAMS_OFF)
-				pVehicle->ToggleWindow(8, false);
-
-			if (Params.byteBackLeftWindow == VEHICLE_PARAMS_ON)
-				pVehicle->ToggleWindow(11, true);
-			else if (Params.byteBackLeftWindow == VEHICLE_PARAMS_OFF)
-				pVehicle->ToggleWindow(11, false);
-
-			if (Params.byteBackRightWindow == VEHICLE_PARAMS_ON)
-				pVehicle->ToggleWindow(9, true);
-			else if (Params.byteBackRightWindow == VEHICLE_PARAMS_OFF)
-				pVehicle->ToggleWindow(9, false);
+			pVehiclePool->ApplyParams(VehicleID);
 		}
 	}
 }
