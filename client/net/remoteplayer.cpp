@@ -85,10 +85,12 @@ void CRemotePlayer::Process(int iLocalWorld)
 			if (m_iVirtualWorld != iLocalWorld || m_byteState == PLAYER_STATE_SPECTATING) m_bVisible = false;
 			else m_bVisible = true;			
 
+			// ShowPlayerMarkers(0) turns them off for everyone, m_bShowPlayerMarkers
+			// arrives in InitGame and was being read but never applied
 			m_pPlayerPed->ProcessMarkers(
 				pNetGame->m_bLimitGlobalMarkerRadius,
 				pNetGame->m_fGlobalMarkerRadius,
-				m_bVisible);
+				m_bVisible && pNetGame->m_bShowPlayerMarkers);
 
 			HandlePlayerPedStreaming();
 

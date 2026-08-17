@@ -244,7 +244,8 @@ void CLabelPool::InitForPlayer(WORD wLabelID, WORD wPlayerID)
 		bsSend.Write(pLabel->fY);
 		bsSend.Write(pLabel->fZ);
 		bsSend.Write(pLabel->fDrawDistance);
-		bsSend.Write(pLabel->bTestLOS); // 1 BYTE (TODO?)
+		// a bool goes on the wire as a single bit, the client reads a whole byte here
+		bsSend.Write((BYTE)pLabel->bTestLOS);
 		bsSend.Write(pLabel->wAttachedPlayerID);
 		bsSend.Write(pLabel->wAttachedVehicleID);
 		

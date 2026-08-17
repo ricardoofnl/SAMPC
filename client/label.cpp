@@ -37,7 +37,7 @@ int CLabel::IsLineOfSightClear(float fX, float fY, float fZ)
 
 void CLabel::Draw(D3DXVECTOR3* ppos, char* szText, DWORD dwColor, bool bShadowed, bool bDoLOS)
 {
-	if (!m_pDevice && (bDoLOS || !IsLineOfSightClear(ppos->x, ppos->y, ppos->z)))
+	if (!m_pDevice || (bDoLOS && !IsLineOfSightClear(ppos->x, ppos->y, ppos->z)))
 		return;
 
 	D3DVIEWPORT9 Viewport;
@@ -48,7 +48,7 @@ void CLabel::Draw(D3DXVECTOR3* ppos, char* szText, DWORD dwColor, bool bShadowed
 	D3DXMatrixIdentity(&matIdent);
 	D3DXVec3Project(&Out, ppos, &Viewport, &matProj, &matView, &matIdent);
 
-	if (Out.z >= 1.0f)
+	if (Out.z > 1.0f)
 		return;
 
 	RECT rect = {(int)Out.x, (int)Out.y, (int)Out.x+1, (int)Out.y+1};
