@@ -39,3 +39,16 @@ This repository contains the full source code for the 0.3.9 version of SAMPC, fo
 - "messageholelimit" server config key added. But currently only report the warning type (1)
 - "playertimeout" server config key had some internal changes
 - Also got fixed the "nohudscalefix" saving
+
+**Vehicle params**
+- The whole 0.3.7 VEHICLE_PARAMS system is now wired up. Everything travels on the
+  RPC_VehicleParams packet the client already knew how to read, instead of the custom
+  ScrSetVehicle ops and the door/window bits that used to ride along with the spawn RPC
+- SetVehicleParamsCarDoors(), SetVehicleParamsCarWindows(), SetVehicleEngineState() and
+  SetVehicleLightState() write into the vehicle params. The matching Get functions can
+  return VEHICLE_PARAMS_UNSET (-1) now, like SA-MP does
+- SetVehicleParamsEx() and GetVehicleParamsEx() added
+- Params reach players that connect later, and reset when the vehicle respawns. Before,
+  the door and window state was read out of the spawn RPC and then thrown away
+- The engine and lights params are applied every frame, with and without
+  ManualVehicleEngineAndLights()
