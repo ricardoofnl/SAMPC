@@ -44,6 +44,22 @@
 
 //----------------------------------------------------------------------------------
 
+// anything negative leaves the param unset, so a script can change one door
+// without reading the other three back first
+static BYTE ParamFromCell(cell value)
+{
+	if (value < 0) return (BYTE)VEHICLE_PARAMS_UNSET;
+	return (value != 0) ? VEHICLE_PARAMS_ON : VEHICLE_PARAMS_OFF;
+}
+
+// unset is stored as 0xFF and has to reach the script as -1
+static cell ParamToCell(BYTE byteValue)
+{
+	return (cell)(signed char)byteValue;
+}
+
+//----------------------------------------------------------------------------------
+
 // native SetSVarInt(varname[], int_value)
 static cell n_SetSVarInt(AMX* amx, cell* params)
 {
@@ -1568,19 +1584,13 @@ static cell n_SetVehicleParamsCarDoors(AMX* amx, cell* params)
 	if (pNetGame->GetVehiclePool()) {
 		CVehicle* pVehicle = pNetGame->GetVehiclePool()->GetAt(params[1]);
 		if (pVehicle != nullptr) {
-			RakNet::BitStream bsSend;
+			pVehicle->m_Params.byteDriverDoor = ParamFromCell(params[2]);
+			pVehicle->m_Params.bytePassengerDoor = ParamFromCell(params[3]);
+			pVehicle->m_Params.byteBackLeftDoor = ParamFromCell(params[4]);
+			pVehicle->m_Params.byteBackRightDoor = ParamFromCell(params[5]);
 
-			// Ignore negative numbers, this ditches calling GetVehicleParamsCarDoors before this call
-			if (params[2] >= 0) pVehicle->m_Doors.bDriver = (params[2] != 0);
-			if (params[3] >= 0) pVehicle->m_Doors.bPassenger = (params[3] != 0);
-			if (params[4] >= 0) pVehicle->m_Doors.bBackLeft = (params[4] != 0);
-			if (params[5] >= 0) pVehicle->m_Doors.bBackRight = (params[5] != 0);
-
-			bsSend.Write<unsigned char>(8);
-			bsSend.Write((VEHICLEID)params[1]); // vehicleid
-			bsSend.WriteBits((unsigned char*)&pVehicle->m_Doors, 4);
-
-			return pNetGame->SendToAll(RPC_ScrSetVehicle, &bsSend);
+			pVehicle->SendParams();
+			return 1;
 		}
 	}
 	return 0;
@@ -1596,13 +1606,13 @@ static cell n_GetVehicleParamsCarDoors(AMX* amx, cell* params)
 		if (pVehicle != nullptr) {
 			cell* cptr;
 			if (amx_GetAddr(amx, params[2], &cptr) == AMX_ERR_NONE)
-				*cptr = pVehicle->m_Doors.bDriver;
+				*cptr = ParamToCell(pVehicle->m_Params.byteDriverDoor);
 			if (amx_GetAddr(amx, params[3], &cptr) == AMX_ERR_NONE)
-				*cptr = pVehicle->m_Doors.bPassenger;
+				*cptr = ParamToCell(pVehicle->m_Params.bytePassengerDoor);
 			if (amx_GetAddr(amx, params[4], &cptr) == AMX_ERR_NONE)
-				*cptr = pVehicle->m_Doors.bBackLeft;
+				*cptr = ParamToCell(pVehicle->m_Params.byteBackLeftDoor);
 			if (amx_GetAddr(amx, params[5], &cptr) == AMX_ERR_NONE)
-				*cptr = pVehicle->m_Doors.bBackRight;
+				*cptr = ParamToCell(pVehicle->m_Params.byteBackRightDoor);
 
 			return 1;
 		}
@@ -1618,19 +1628,13 @@ static cell n_SetVehicleParamsCarWindows(AMX* amx, cell* params)
 	if (pNetGame->GetVehiclePool()) {
 		CVehicle* pVehicle = pNetGame->GetVehiclePool()->GetAt(params[1]);
 		if (pVehicle != nullptr) {
-			RakNet::BitStream out;
+			pVehicle->m_Params.byteDriverWindow = ParamFromCell(params[2]);
+			pVehicle->m_Params.bytePassengerWindow = ParamFromCell(params[3]);
+			pVehicle->m_Params.byteBackLeftWindow = ParamFromCell(params[4]);
+			pVehicle->m_Params.byteBackRightWindow = ParamFromCell(params[5]);
 
-			// Ignore negative numbers, this can ditches calling GetVehicleParamsCarWindows before this call
-			if (params[2] >= 0) pVehicle->m_Windows.bDriver = (params[2] != 0);
-			if (params[3] >= 0) pVehicle->m_Windows.bPassenger = (params[3] != 0);
-			if (params[4] >= 0) pVehicle->m_Windows.bBackLeft = (params[4] != 0);
-			if (params[5] >= 0) pVehicle->m_Windows.bBackRight = (params[5] != 0);
-
-			out.Write<unsigned char>(2);
-			out.Write((VEHICLEID)params[1]); // vehicleid
-			out.WriteBits((unsigned char*)&pVehicle->m_Windows, 4);
-
-			return pNetGame->SendToAll(RPC_ScrSetVehicle, &out);
+			pVehicle->SendParams();
+			return 1;
 		}
 	}
 	return 0;
@@ -1646,13 +1650,13 @@ static cell n_GetVehicleParamsCarWindows(AMX* amx, cell* params)
 		if (pVehicle != nullptr) {
 			cell* cptr;
 			if (amx_GetAddr(amx, params[2], &cptr) == AMX_ERR_NONE)
-				*cptr = pVehicle->m_Windows.bDriver;
+				*cptr = ParamToCell(pVehicle->m_Params.byteDriverWindow);
 			if (amx_GetAddr(amx, params[3], &cptr) == AMX_ERR_NONE)
-				*cptr = pVehicle->m_Windows.bPassenger;
+				*cptr = ParamToCell(pVehicle->m_Params.bytePassengerWindow);
 			if (amx_GetAddr(amx, params[4], &cptr) == AMX_ERR_NONE)
-				*cptr = pVehicle->m_Windows.bBackLeft;
+				*cptr = ParamToCell(pVehicle->m_Params.byteBackLeftWindow);
 			if (amx_GetAddr(amx, params[5], &cptr) == AMX_ERR_NONE)
-				*cptr = pVehicle->m_Windows.bBackRight;
+				*cptr = ParamToCell(pVehicle->m_Params.byteBackRightWindow);
 
 			return 1;
 		}
