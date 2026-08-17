@@ -143,6 +143,7 @@ type
     procedure tsServerListsChange(Sender: TObject);
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
+    procedure lebNameChange(Sender: TObject);
     procedure lvServersSelectItem(Sender: TObject; Item: TListItem;
       Selected: Boolean);
   private
@@ -304,6 +305,12 @@ begin
   UpdateSelectionUI;
 end;
 
+// written as it is typed, a killed process should not cost the nickname
+procedure TfmMain.lebNameChange(Sender: TObject);
+begin
+  WritePlayerName(lebName.Text);
+end;
+
 procedure TfmMain.FormDestroy(Sender: TObject);
 begin
   WritePlayerName(lebName.Text);
@@ -411,6 +418,9 @@ begin
         Servers[iIdx].HostName := ReadStr(4);
         Servers[iIdx].Mode := ReadStr(4);
         Servers[iIdx].Map := ReadStr(4);
+
+        // the favourites file only had the address until now
+        SaveFavorites(UserDataPath);
       end;
 
     QUERY_OP_CLIENTS:
