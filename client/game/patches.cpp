@@ -206,7 +206,7 @@ void ApplyDebugLevelPatches()
 void ApplyManualVehicleLightsPatch()
 {
 	static bool bInited = false;
-	if (bInited)
+	if (!bInited)
 	{
 		memset((void*)0x6E1BE3, 0x90, 37);
 		memset((void*)0x6E1C38, 0x90, 8);
