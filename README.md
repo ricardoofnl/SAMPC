@@ -40,15 +40,46 @@ This repository contains the full source code for the 0.3.9 version of SAMPC, fo
 - "playertimeout" server config key had some internal changes
 - Also got fixed the "nohudscalefix" saving
 
-**Vehicle params**
+**SA-MP 0.3.9-A5 [Client] and 0.3.9-A3 [Server]**
+
+*Vehicle params*
 - The whole 0.3.7 VEHICLE_PARAMS system is now wired up. Everything travels on the
   RPC_VehicleParams packet the client already knew how to read, instead of the custom
   ScrSetVehicle ops and the door/window bits that used to ride along with the spawn RPC
 - SetVehicleParamsCarDoors(), SetVehicleParamsCarWindows(), SetVehicleEngineState() and
   SetVehicleLightState() write into the vehicle params. The matching Get functions can
   return VEHICLE_PARAMS_UNSET (-1) now, like SA-MP does
-- SetVehicleParamsEx() and GetVehicleParamsEx() added
+- SetVehicleParamsEx() and GetVehicleParamsEx() added, and ManualVehicleEngineAndLights()
+  is finally declared in a_vehicles.inc
 - Params reach players that connect later, and reset when the vehicle respawns. Before,
   the door and window state was read out of the spawn RPC and then thrown away
 - The engine and lights params are applied every frame, with and without
   ManualVehicleEngineAndLights()
+- Vehicle windows work on every model. The old code only touched cars, which was hiding
+  a missing null check rather than a model problem
+
+*Dialogs*
+- ShowPlayerDialog() and OnDialogResponse() now work end to end. CDialog existed but was
+  never constructed, so nothing rendered it and nothing could answer it
+- All six styles: MSGBOX, INPUT, LIST, PASSWORD with masked input, TABLIST and
+  TABLIST_HEADERS with real tab separated columns
+- A response is only accepted for the dialog that player was actually shown
+- Dialogs and the scoreboard share one dark rounded panel style, and /fontsize reaches
+  them the way the SA-MP docs describe
+
+*Server browser*
+- samp.exe queries servers again, so the server name, player count, gamemode, map, the
+  player list with scores, the rules list and the ping all fill in. Neither side had ever
+  implemented the query protocol
+- The nickname and the favourites list survive a restart, stored the way the original
+  does it, HKCU\Software\SAMP for the name and USERDATA.DAT for the list
+
+*Fixes*
+- /fontsize accepted no value at all. It compared a DWORD against -3, so the test was
+  really "is this at least 4294967293"
+- Opening any dialog killed the process instantly with no crash dump, a strcpy_s given
+  the string length as the buffer size
+- ManualVehicleEngineAndLights() never reached the client, two InitGame fields were
+  written and read in opposite orders
+- The manual vehicle lights patch was guarded on a flag that was always false, so it had
+  never run once
