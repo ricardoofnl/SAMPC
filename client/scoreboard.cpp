@@ -62,7 +62,8 @@ void CScoreBoard::ResetDialogControls()
 		m_pDialog->SetCallback(OnScoreBoardEvent);
 		m_pDialog->SetSize((int)m_fWidth, (int)m_fHeight);
 		m_pDialog->SetLocation(0, 0);
-		m_pDialog->SetBackgroundColors(DLG_COL_PANEL);
+		// the rounded panel is drawn in Draw(), so the square quad stays off
+		m_pDialog->SetBackgroundColors(D3DCOLOR_ARGB(0, 0, 0, 0));
 		m_pDialog->EnableMouseInput(true);
 		m_pDialog->EnableKeyboardInput(true);
 		m_pDialog->SetVisible(false);
@@ -301,6 +302,14 @@ void CScoreBoard::Draw()
 				iWidth / 2 - (int)m_fWidth / 2,
 				iHeight / 2 - (int)m_fHeight / 2);
 		}
+
+		// same rounded surface the dialogs use, the header strip is the band the
+		// hostname and column titles are drawn over
+		RECT panel;
+		GetRect(&panel);
+		DrawRoundedPanel(m_pDevice, &panel, (int)m_fHeaderHeight,
+			DLG_COL_PANEL, DLG_COL_HEADER);
+
 		m_pDialog->OnRender(10.0f);
 	}
 

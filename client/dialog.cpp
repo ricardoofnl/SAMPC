@@ -177,10 +177,11 @@ void CDialog::UpdateFont()
 //----------------------------------------------------
 
 // a triangle fan with the four corners cut into arcs, drawn in place of the square
-// quad CDXUTDialog would otherwise put down
-void CDialog::DrawRoundedPanel(RECT* pRect, int iCaptionHeight)
+// quad CDXUTDialog would otherwise put down. shared with the scoreboard
+void DrawRoundedPanel(IDirect3DDevice9* pDevice, RECT* pRect, int iHeaderHeight,
+	D3DCOLOR panelColor, D3DCOLOR headerColor)
 {
-	if (!m_pDevice) return;
+	if (!pDevice) return;
 
 	struct PANEL_VERTEX
 	{
@@ -204,7 +205,7 @@ void CDialog::DrawRoundedPanel(RECT* pRect, int iCaptionHeight)
 	vertices[iVertex].y = (fTop + fBottom) * 0.5f;
 	vertices[iVertex].z = 0.5f;
 	vertices[iVertex].h = 1.0f;
-	vertices[iVertex].color = DLG_COL_PANEL;
+	vertices[iVertex].color = panelColor;
 	iVertex++;
 
 	// corner centres, clockwise from the top left, with the arc sweep for each
@@ -222,9 +223,9 @@ void CDialog::DrawRoundedPanel(RECT* pRect, int iCaptionHeight)
 			vertices[iVertex].y = fCornerY[iCorner] + (sinf(fAngle) * fRadius);
 			vertices[iVertex].z = 0.5f;
 			vertices[iVertex].h = 1.0f;
-			// the caption strip sits at the top, so tint those rows brighter
+			// the header strip sits at the top, so tint those rows brighter
 			vertices[iVertex].color =
-				(vertices[iVertex].y < (fTop + (float)iCaptionHeight)) ? DLG_COL_HEADER : DLG_COL_PANEL;
+				(vertices[iVertex].y < (fTop + (float)iHeaderHeight)) ? headerColor : panelColor;
 			iVertex++;
 		}
 	}
@@ -233,34 +234,34 @@ void CDialog::DrawRoundedPanel(RECT* pRect, int iCaptionHeight)
 	iVertex++;
 
 	DWORD dwOldFVF, dwOldZ, dwOldAlpha, dwOldSrc, dwOldDst, dwOldCull, dwOldLight;
-	m_pDevice->GetFVF(&dwOldFVF);
-	m_pDevice->GetRenderState(D3DRS_ZENABLE, &dwOldZ);
-	m_pDevice->GetRenderState(D3DRS_ALPHABLENDENABLE, &dwOldAlpha);
-	m_pDevice->GetRenderState(D3DRS_SRCBLEND, &dwOldSrc);
-	m_pDevice->GetRenderState(D3DRS_DESTBLEND, &dwOldDst);
-	m_pDevice->GetRenderState(D3DRS_CULLMODE, &dwOldCull);
-	m_pDevice->GetRenderState(D3DRS_LIGHTING, &dwOldLight);
+	pDevice->GetFVF(&dwOldFVF);
+	pDevice->GetRenderState(D3DRS_ZENABLE, &dwOldZ);
+	pDevice->GetRenderState(D3DRS_ALPHABLENDENABLE, &dwOldAlpha);
+	pDevice->GetRenderState(D3DRS_SRCBLEND, &dwOldSrc);
+	pDevice->GetRenderState(D3DRS_DESTBLEND, &dwOldDst);
+	pDevice->GetRenderState(D3DRS_CULLMODE, &dwOldCull);
+	pDevice->GetRenderState(D3DRS_LIGHTING, &dwOldLight);
 
-	m_pDevice->SetTexture(0, NULL);
-	m_pDevice->SetPixelShader(NULL);
-	m_pDevice->SetVertexShader(NULL);
-	m_pDevice->SetFVF(D3DFVF_XYZRHW | D3DFVF_DIFFUSE);
-	m_pDevice->SetRenderState(D3DRS_ZENABLE, FALSE);
-	m_pDevice->SetRenderState(D3DRS_LIGHTING, FALSE);
-	m_pDevice->SetRenderState(D3DRS_CULLMODE, D3DCULL_NONE);
-	m_pDevice->SetRenderState(D3DRS_ALPHABLENDENABLE, TRUE);
-	m_pDevice->SetRenderState(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA);
-	m_pDevice->SetRenderState(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA);
+	pDevice->SetTexture(0, NULL);
+	pDevice->SetPixelShader(NULL);
+	pDevice->SetVertexShader(NULL);
+	pDevice->SetFVF(D3DFVF_XYZRHW | D3DFVF_DIFFUSE);
+	pDevice->SetRenderState(D3DRS_ZENABLE, FALSE);
+	pDevice->SetRenderState(D3DRS_LIGHTING, FALSE);
+	pDevice->SetRenderState(D3DRS_CULLMODE, D3DCULL_NONE);
+	pDevice->SetRenderState(D3DRS_ALPHABLENDENABLE, TRUE);
+	pDevice->SetRenderState(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA);
+	pDevice->SetRenderState(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA);
 
-	m_pDevice->DrawPrimitiveUP(D3DPT_TRIANGLEFAN, iVertex - 2, vertices, sizeof(PANEL_VERTEX));
+	pDevice->DrawPrimitiveUP(D3DPT_TRIANGLEFAN, iVertex - 2, vertices, sizeof(PANEL_VERTEX));
 
-	m_pDevice->SetRenderState(D3DRS_LIGHTING, dwOldLight);
-	m_pDevice->SetRenderState(D3DRS_CULLMODE, dwOldCull);
-	m_pDevice->SetRenderState(D3DRS_DESTBLEND, dwOldDst);
-	m_pDevice->SetRenderState(D3DRS_SRCBLEND, dwOldSrc);
-	m_pDevice->SetRenderState(D3DRS_ALPHABLENDENABLE, dwOldAlpha);
-	m_pDevice->SetRenderState(D3DRS_ZENABLE, dwOldZ);
-	m_pDevice->SetFVF(dwOldFVF);
+	pDevice->SetRenderState(D3DRS_LIGHTING, dwOldLight);
+	pDevice->SetRenderState(D3DRS_CULLMODE, dwOldCull);
+	pDevice->SetRenderState(D3DRS_DESTBLEND, dwOldDst);
+	pDevice->SetRenderState(D3DRS_SRCBLEND, dwOldSrc);
+	pDevice->SetRenderState(D3DRS_ALPHABLENDENABLE, dwOldAlpha);
+	pDevice->SetRenderState(D3DRS_ZENABLE, dwOldZ);
+	pDevice->SetFVF(dwOldFVF);
 }
 
 //----------------------------------------------------
@@ -285,7 +286,7 @@ void CDialog::Draw()
 	{
 		RECT panel;
 		GetRect(&panel);
-		DrawRoundedPanel(&panel, iCaptionHeight);
+		DrawRoundedPanel(m_pDevice, &panel, iCaptionHeight, DLG_COL_PANEL, DLG_COL_HEADER);
 	}
 
 	m_pDialog->OnRender(10.0f);

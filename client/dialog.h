@@ -40,6 +40,8 @@
 // shared so the scoreboard can sit on the same palette
 void TintElement(CDXUTElement* pElement, D3DCOLOR normal,
 	D3DCOLOR mouseover, D3DCOLOR pressed, D3DCOLOR text);
+void DrawRoundedPanel(IDirect3DDevice9* pDevice, RECT* pRect, int iHeaderHeight,
+	D3DCOLOR panelColor, D3DCOLOR headerColor);
 
 class CDialog
 {
@@ -82,7 +84,6 @@ public:
 	void Show(int iID, int iStyle, char* szCaption, char* szContent, char* szButton1, char* szButton2, bool bSendResponse);
 	void Hide();
 	void Draw();
-	void DrawRoundedPanel(RECT* pRect, int iCaptionHeight);
 	void UpdateFont();
 	void SendResponse(bool bResponse);
 
