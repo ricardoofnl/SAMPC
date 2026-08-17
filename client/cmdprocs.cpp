@@ -56,12 +56,13 @@ void cmdDefaultCmdProc(PCHAR szCmd)
 
 void cmdSetFontSize(PCHAR szCmd)
 {
-	DWORD dwSize;
+	// signed, a DWORD turned the lower bound into 0xFFFFFFFD and nothing passed it
+	int iSize;
 
-	if (strlen(szCmd) && (dwSize = atol(szCmd), dwSize >= -3) && dwSize <= 5)
+	if (strlen(szCmd) && (iSize = atol(szCmd)) >= -3 && iSize <= 5)
 	{
 		if (pConfigFile)
-			pConfigFile->SetInt("fontsize", dwSize);
+			pConfigFile->SetInt("fontsize", iSize);
 
 		if (pDefaultFont)
 			pDefaultFont->CreateFonts();
