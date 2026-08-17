@@ -669,6 +669,10 @@ void CDialog::Show(int iID, int iStyle, char* szCaption,
 
 			iEditTop = iRowTop;
 
+			// the original flips two bytes on the edit box for style 3, this is
+			// the same switch
+			m_pEditBox->SetPasswordMode(m_iDialogStyle == DIALOG_STYLE_PASSWORD);
+
 			m_pEditBox->SetText("");
 			m_pEditBox->SetVisible(true);
 			m_pEditBox->SetEnabled(true);

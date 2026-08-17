@@ -4849,6 +4849,7 @@ CDXUTEditBox::CDXUTEditBox( CDXUTDialog *pDialog )
     m_CaretColor = D3DCOLOR_ARGB( 255, 0, 0, 0 );
     m_nCaret = m_nSelStart = 0;
     m_bInsertMode = true;
+    m_bPasswordMode = false;
 
     m_bMouseDrag = false;
 }
@@ -5445,9 +5446,25 @@ void CDXUTEditBox::Render( IDirect3DDevice9* pd3dDevice, float fElapsedTime )
     //
     // Render the text
     //
+    // SA-MP addition, a password box shows one glyph per character and never the
+    // text itself. GetText is untouched so the dialog response still carries it
+    TCHAR szMask[256];
+    LPCTSTR pRenderFrom = m_Buffer.GetBuffer() + m_nFirstVisible;
+
+    if( m_bPasswordMode )
+    {
+        size_t nLen = strlen( pRenderFrom );
+        if( nLen > ( sizeof(szMask) - 1 ) )
+            nLen = sizeof(szMask) - 1;
+
+        memset( szMask, DXUT_PASSWORD_MASK_CHAR, nLen );
+        szMask[nLen] = '\0';
+        pRenderFrom = szMask;
+    }
+
     // Element 0 for text
     m_Elements.GetAt( 0 )->FontColor.Current = m_TextColor;
-    m_pDialog->DrawText( m_Buffer.GetBuffer() + m_nFirstVisible, m_Elements.GetAt( 0 ), &m_rcText );
+    m_pDialog->DrawText( pRenderFrom, m_Elements.GetAt( 0 ), &m_rcText );
 
     // Render the selected text
     if( m_nCaret != m_nSelStart )
@@ -5455,7 +5472,11 @@ void CDXUTEditBox::Render( IDirect3DDevice9* pd3dDevice, float fElapsedTime )
         int nFirstToRender = __max( m_nFirstVisible, __min( m_nSelStart, m_nCaret ) );
         int nNumChatToRender = __max( m_nSelStart, m_nCaret ) - nFirstToRender;
         m_Elements.GetAt( 0 )->FontColor.Current = m_SelTextColor;
-        m_pDialog->DrawText( m_Buffer.GetBuffer() + nFirstToRender,
+
+        LPCTSTR pSelFrom = m_bPasswordMode ? szMask
+                                           : ( m_Buffer.GetBuffer() + nFirstToRender );
+
+        m_pDialog->DrawText( pSelFrom,
                              m_Elements.GetAt( 0 ), &rcSelection, false, nNumChatToRender );
     }
 
