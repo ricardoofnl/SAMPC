@@ -664,6 +664,20 @@ void CVehicle::ProcessMarkers()
 
 //-----------------------------------------------------------
 
+// ProcessMarkers picks the change up from m_bSpecialMarkerEnabled being out of date
+void CVehicle::SetObjective(bool bOn)
+{
+	if(bOn) {
+		m_byteObjectiveVehicle = 1;
+		m_bSpecialMarkerEnabled = FALSE;
+	} else {
+		m_byteObjectiveVehicle = 0;
+		m_bSpecialMarkerEnabled = TRUE;
+	}
+}
+
+//-----------------------------------------------------------
+
 void CVehicle::SetDoorState(int iState)
 {
 	if(iState) {

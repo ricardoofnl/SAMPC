@@ -20,6 +20,7 @@ CVehiclePool::CVehiclePool()
 		m_pVehicles[VehicleID] = NULL;
 		m_iVirtualWorld[VehicleID] = 0;
 		m_bHasSiren[VehicleID] = false;
+		m_byteLightsApplied[VehicleID] = (BYTE)VEHICLE_PARAMS_UNSET;
 		ResetParams(VehicleID);
 	}
 	m_bRebuildPlateTextures = true;
@@ -175,6 +176,7 @@ bool CVehiclePool::Spawn( VEHICLEID VehicleID, int iVehicleType,
 		}
 
 		// the game vehicle is brand new here, so whatever the server told us before is gone
+		m_byteLightsApplied[VehicleID] = (BYTE)VEHICLE_PARAMS_UNSET;
 		ApplyParams(VehicleID);
 
 		m_bIsActive[VehicleID] = true;
@@ -231,22 +233,53 @@ void CVehiclePool::ResetParams(VEHICLEID VehicleID)
 
 //----------------------------------------------------
 
-void CVehiclePool::ApplyParams(VEHICLEID VehicleID)
+// the game keeps flipping the engine back, so it gets rewritten every frame
+void CVehiclePool::ProcessEngineAndLights(VEHICLEID VehicleID)
 {
 	CVehicle *pVehicle = GetAt(VehicleID);
 	if(!pVehicle) return;
 
 	VEHICLE_PARAMS *pParams = &m_Params[VehicleID];
 
-	if(pParams->byteEngine == VEHICLE_PARAMS_ON)
-		pVehicle->SetEngine(true);
-	else if(pParams->byteEngine == VEHICLE_PARAMS_OFF)
-		pVehicle->SetEngine(false);
+	if(pNetGame->m_bManualEngineAndLights) {
+		pVehicle->SetEngineState(pParams->byteEngine == VEHICLE_PARAMS_ON);
+		ApplyLights(VehicleID, pParams->byteLights == VEHICLE_PARAMS_ON);
+		return;
+	}
 
-	if(pParams->byteLights == VEHICLE_PARAMS_ON)
-		pVehicle->SetLights(true);
-	else if(pParams->byteLights == VEHICLE_PARAMS_OFF)
-		pVehicle->SetLights(false);
+	if(pParams->byteEngine == VEHICLE_PARAMS_ON)
+		pVehicle->SetEngineState(TRUE);
+	else if(pParams->byteEngine == VEHICLE_PARAMS_OFF)
+		pVehicle->SetEngineState(FALSE);
+	else
+		pVehicle->SetEngineState(pVehicle->HasADriver());
+
+	// unset leaves the lights alone, the game decides
+	if(pParams->byteLights != (BYTE)VEHICLE_PARAMS_UNSET)
+		ApplyLights(VehicleID, pParams->byteLights == VEHICLE_PARAMS_ON);
+}
+
+//----------------------------------------------------
+
+void CVehiclePool::ApplyLights(VEHICLEID VehicleID, bool bOn)
+{
+	BYTE byteWanted = bOn ? VEHICLE_PARAMS_ON : VEHICLE_PARAMS_OFF;
+
+	if(m_byteLightsApplied[VehicleID] == byteWanted) return;
+
+	m_pVehicles[VehicleID]->SetLightState(bOn);
+	m_byteLightsApplied[VehicleID] = byteWanted;
+}
+
+//----------------------------------------------------
+
+void CVehiclePool::ApplyParams(VEHICLEID VehicleID)
+{
+	CVehicle *pVehicle = GetAt(VehicleID);
+	if(!pVehicle) return;
+
+	// engine and lights are not applied here, Process() forces them every frame
+	VEHICLE_PARAMS *pParams = &m_Params[VehicleID];
 
 	if(pParams->byteDoors == VEHICLE_PARAMS_ON)
 		pVehicle->SetDoorState(1);
@@ -523,8 +556,9 @@ void CVehiclePool::Process()
 
 				if(!pVehicle->HasADriver()) {
 					pVehicle->SetHornState(0);
-					pVehicle->SetEngineState(false);
 				}
+
+				ProcessEngineAndLights(x);
 
 				// Put at the END so other processing is still done!
 				ProcessForVirtualWorld(x, localVW);

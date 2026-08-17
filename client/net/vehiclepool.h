@@ -35,6 +35,8 @@ public:
 	bool				m_bIsWasted[MAX_VEHICLES];
 	VEHICLE_SPAWN_INFO	m_SpawnInfo[MAX_VEHICLES];
 	VEHICLE_PARAMS		m_Params[MAX_VEHICLES];
+	// last lights value pushed to the game, SetLightState costs two opcodes
+	BYTE				m_byteLightsApplied[MAX_VEHICLES];
 
 	int					m_iRespawnDelay[MAX_VEHICLES];
 	int					m_iVirtualWorld[MAX_VEHICLES];
@@ -88,6 +90,8 @@ public:
 
 	void ResetParams(VEHICLEID VehicleID);
 	void ApplyParams(VEHICLEID VehicleID);
+	void ProcessEngineAndLights(VEHICLEID VehicleID);
+	void ApplyLights(VEHICLEID VehicleID, bool bOn);
 	
 	int GetVehicleVirtualWorld(VEHICLEID VehicleID) const {
 		if (VehicleID >= MAX_VEHICLES) { return 0; }
