@@ -80,8 +80,19 @@ CObject *CGame::NewObject(int iModel, float fPosX, float fPosY,
 
 CPlayerPed* CGame::FindPlayerPed()
 {
-	if (m_pGamePlayer == NULL)
+	if (m_pGamePlayer == NULL) {
 		m_pGamePlayer = new CPlayerPed();
+		return m_pGamePlayer;
+	}
+
+	// the game throws the local ped away and builds a new one when it restarts the
+	// world, so resync instead of keeping the pointer from construction time
+	PED_TYPE *pGamePed = GamePool_FindPlayerPed();
+	if (pGamePed && pGamePed != m_pGamePlayer->m_pPed) {
+		m_pGamePlayer->m_pPed = pGamePed;
+		m_pGamePlayer->m_pEntity = (ENTITY_TYPE *)pGamePed;
+		SetPlayerPedPtrRecord(m_pGamePlayer->m_bytePlayerNumber, (DWORD)pGamePed);
+	}
 
 	return m_pGamePlayer;
 };

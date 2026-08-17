@@ -176,7 +176,23 @@ void CEntity::TeleportTo(float x, float y, float z)
 {
 	DWORD dwThisEntity = (DWORD)m_pEntity;
 
-	if(dwThisEntity) {
+	if(dwThisEntity && m_pEntity->vtable != ADDR_PLACEABLE_VTBL) {
+
+		// CPed::Teleport flushes the tasks through CPedIntelligence::m_pPed, so a
+		// ped left holding a freed intelligence faults inside the game
+		if(ENTITY_KIND(m_pEntity) == ENTITY_KIND_PED) {
+			PED_TASKS_TYPE *pTasks = ((PED_TYPE *)m_pEntity)->Tasks;
+			if((DWORD)pTasks < 0x10000 || pTasks->pdwPed != (DWORD *)m_pEntity) {
+				static bool bReported = false;
+				if(!bReported && pChatWindow) {
+					bReported = true;
+					pChatWindow->AddDebugMessage("Warning: skipped teleport, ped 0x%X has a stale intelligence 0x%X",
+						dwThisEntity, (DWORD)pTasks);
+				}
+				return;
+			}
+		}
+
 		if( GetModelIndex() != TRAIN_PASSENGER_LOCO &&
 			GetModelIndex() != TRAIN_FREIGHT_LOCO &&
 			GetModelIndex() != TRAIN_TRAM) {

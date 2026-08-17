@@ -23,6 +23,11 @@
 
 #define IN_VEHICLE(x) ((x->dwStateFlags & 256) >> 8)
 
+// low 3 bits of ENTITY_TYPE::nControlFlags
+#define ENTITY_KIND(x) ((x)->nControlFlags & 7)
+#define ENTITY_KIND_VEHICLE 2
+#define ENTITY_KIND_PED     3
+
 //-----------------------------------------------------------
 
 typedef struct _WEAPON_SLOT_TYPE
