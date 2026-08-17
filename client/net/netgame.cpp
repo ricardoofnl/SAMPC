@@ -325,12 +325,7 @@ void CNetGame::Process()
 			if(pLocalPed->IsInVehicle()) {
 				pLocalPed->RemoveFromVehicleAndPutAt(1093.4f, -2036.5f, 82.710602f);
 			} else {
-				// for a player ped CPed::Teleport always flushes the task manager and
-				// faults inside CPedIntelligence, and the hold has no tasks to keep
-				DWORD dwSavedPedType = pLocalPed->m_pPed->dwPedType;
-				pLocalPed->m_pPed->dwPedType = 3;
 				pLocalPed->TeleportTo(1133.0504f, -2038.4034f, 69.1f);
-				pLocalPed->m_pPed->dwPedType = dwSavedPedType;
 			}
 			pGame->GetCamera()->SetPosition(1093.0f, -2036.0f, 90.0f,0.0f,0.0f,0.0f);
 			pGame->GetCamera()->LookAtPoint(384.0f, -1557.0f, 20.0f,2);

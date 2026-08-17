@@ -16,6 +16,7 @@
 void GameInstallHooks();
 bool ApplyPreGamePatches();
 void ApplyInGamePatches();
+void ArmPedIntelligenceWatch(DWORD dwAddress);
 
 char *szGameTextMessage;
 
@@ -92,6 +93,12 @@ CPlayerPed* CGame::FindPlayerPed()
 		m_pGamePlayer->m_pPed = pGamePed;
 		m_pGamePlayer->m_pEntity = (ENTITY_TYPE *)pGamePed;
 		SetPlayerPedPtrRecord(m_pGamePlayer->m_bytePlayerNumber, (DWORD)pGamePed);
+	}
+
+	if (pGamePed && (DWORD)pGamePed->Tasks > 0x10000 &&
+		pGamePed->Tasks->pdwPed == (DWORD *)pGamePed)
+	{
+		ArmPedIntelligenceWatch((DWORD)&pGamePed->Tasks->pdwPed);
 	}
 
 	return m_pGamePlayer;

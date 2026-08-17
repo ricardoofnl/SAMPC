@@ -52,6 +52,83 @@ static const char* ResolveAddress(PVOID pAddress, char* szOut, size_t nOutSize)
 	return szOut;
 }
 
+// something writes a float into CPedIntelligence::m_pPed and gta faults reading it
+// back, so watch the dword with a debug register and log whoever writes it
+static PVOID pWatchHandler = NULL;
+static DWORD dwWatchAddress = 0;
+
+static void DisarmWatch()
+{
+	CONTEXT ctx;
+
+	ctx.ContextFlags = CONTEXT_DEBUG_REGISTERS;
+	if (GetThreadContext(GetCurrentThread(), &ctx)) {
+		ctx.Dr0 = 0;
+		ctx.Dr7 = 0;
+		SetThreadContext(GetCurrentThread(), &ctx);
+	}
+	if (pWatchHandler) {
+		RemoveVectoredExceptionHandler(pWatchHandler);
+		pWatchHandler = NULL;
+	}
+}
+
+static LONG CALLBACK WatchHandler(PEXCEPTION_POINTERS pExc)
+{
+	char szModule[MAX_PATH + 32];
+	FILE* f;
+
+	if (pExc->ExceptionRecord->ExceptionCode != EXCEPTION_SINGLE_STEP)
+		return EXCEPTION_CONTINUE_SEARCH;
+
+	if (fopen_s(&f, "samp-watchpoint.txt", "w") == 0) {
+		fprintf_s(f, "write to 0x%08X from 0x%08X (%s)\n"
+			"EAX: 0x%08X\tEBX: 0x%08X\tECX: 0x%08X\tEDX: 0x%08X\n"
+			"ESI: 0x%08X\tEDI: 0x%08X\tEBP: 0x%08X\tESP: 0x%08X\n"
+			"now holds 0x%08X\n\nStack:\n",
+			dwWatchAddress, pExc->ContextRecord->Eip,
+			ResolveAddress((PVOID)pExc->ContextRecord->Eip, szModule, sizeof(szModule)),
+			pExc->ContextRecord->Eax, pExc->ContextRecord->Ebx,
+			pExc->ContextRecord->Ecx, pExc->ContextRecord->Edx,
+			pExc->ContextRecord->Esi, pExc->ContextRecord->Edi,
+			pExc->ContextRecord->Ebp, pExc->ContextRecord->Esp,
+			*(DWORD*)dwWatchAddress);
+
+		for (int i = 0; i < 0x40; i += 4) {
+			DWORD dwSlot = *(DWORD*)(pExc->ContextRecord->Esp + i);
+			fprintf_s(f, "+%04X: 0x%08X  %s\n", i, dwSlot,
+				ResolveAddress((PVOID)dwSlot, szModule, sizeof(szModule)));
+		}
+		fclose(f);
+	}
+
+	DisarmWatch();
+	return EXCEPTION_CONTINUE_EXECUTION;
+}
+
+// one shot, the field is only written legitimately by the CPedIntelligence ctor so
+// anything caught after this point is the bug
+void ArmPedIntelligenceWatch(DWORD dwAddress)
+{
+	CONTEXT ctx;
+
+	if (dwWatchAddress || !dwAddress)
+		return;
+
+	dwWatchAddress = dwAddress;
+	pWatchHandler = AddVectoredExceptionHandler(1, WatchHandler);
+
+	ctx.ContextFlags = CONTEXT_DEBUG_REGISTERS;
+	if (!GetThreadContext(GetCurrentThread(), &ctx))
+		return;
+
+	ctx.Dr0 = dwAddress;
+	// L0, and for slot 0 RW=01 (write) with LEN=11 (four bytes)
+	ctx.Dr7 = (ctx.Dr7 & ~0xFUL) | 1UL | (1UL << 16) | (3UL << 18);
+	ctx.Dr6 = 0;
+	SetThreadContext(GetCurrentThread(), &ctx);
+}
+
 static void DumpLoadedModules(FILE* f)
 {
 	HANDLE hModuleSnap;

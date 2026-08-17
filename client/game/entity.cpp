@@ -180,14 +180,16 @@ void CEntity::TeleportTo(float x, float y, float z)
 
 		// CPed::Teleport flushes the tasks through CPedIntelligence::m_pPed, so a
 		// ped left holding a freed intelligence faults inside the game
+		PED_TYPE *pPed = NULL;
+
 		if(ENTITY_KIND(m_pEntity) == ENTITY_KIND_PED) {
-			PED_TASKS_TYPE *pTasks = ((PED_TYPE *)m_pEntity)->Tasks;
-			if((DWORD)pTasks < 0x10000 || pTasks->pdwPed != (DWORD *)m_pEntity) {
+			pPed = (PED_TYPE *)m_pEntity;
+			if((DWORD)pPed->Tasks < 0x10000 || pPed->Tasks->pdwPed != (DWORD *)pPed) {
 				static bool bReported = false;
 				if(!bReported && pChatWindow) {
 					bReported = true;
 					pChatWindow->AddDebugMessage("Warning: skipped teleport, ped 0x%X has a stale intelligence 0x%X",
-						dwThisEntity, (DWORD)pTasks);
+						dwThisEntity, (DWORD)pPed->Tasks);
 				}
 				return;
 			}
@@ -196,6 +198,17 @@ void CEntity::TeleportTo(float x, float y, float z)
 		if( GetModelIndex() != TRAIN_PASSENGER_LOCO &&
 			GetModelIndex() != TRAIN_FREIGHT_LOCO &&
 			GetModelIndex() != TRAIN_TRAM) {
+
+			// for pedType 0 or 1 CPed::Teleport always runs
+			// CPedIntelligence::FlushImmediately, which leaves a float in
+			// CPedIntelligence::m_pPed and then faults reading it back. 3 sends it down
+			// the branch that only flushes when a task 0x2C0 is active
+			DWORD dwSavedPedType = 0;
+			if(pPed) {
+				dwSavedPedType = pPed->dwPedType;
+				pPed->dwPedType = 3;
+			}
+
 			_asm mov ecx, dwThisEntity
 			_asm mov edx, [ecx] ; vtbl
 			_asm push 0
@@ -203,6 +216,11 @@ void CEntity::TeleportTo(float x, float y, float z)
 			_asm push y
 			_asm push x
 			_asm call dword ptr [edx+56] ; method 14
+
+			if(pPed) {
+				pPed->dwPedType = dwSavedPedType;
+				pPed->Tasks->pdwPed = (DWORD *)pPed;
+			}
 		} else {
 			ScriptCommand(&put_train_at,m_dwGTAId,x,y,z);
 		}
