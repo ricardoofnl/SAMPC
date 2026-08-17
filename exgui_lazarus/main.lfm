@@ -5,6 +5,7 @@ object fmMain: TfmMain
   Width = 839
   Caption = 'San Andreas Multiplayer'
   OnCreate = FormCreate
+  OnDestroy = FormDestroy
   ClientHeight = 580
   ClientWidth = 839
   Constraints.MinHeight = 420
@@ -381,6 +382,7 @@ object fmMain: TfmMain
     Hint = 'e.g.: [MCB]Woozie'
     Top = 2
     Width = 160
+    OnChange = lebNameChange
     HelpType = htKeyword
     EditLabel.Height = 15
     EditLabel.Width = 49

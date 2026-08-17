@@ -103,7 +103,7 @@ does not exist here.
 | project | produces | status |
 | --- | --- | --- |
 | `exgui/` | `samp.exe`, the server browser | Delphi with VCL. No free compiler exists, nothing on a GitHub runner can build it. |
-| `exgui_lazarus/` | same, ported | Builds with `lazbuild`, but all 26 event handlers in `main.pas` are empty and only 2 of the Delphi project's 8 forms were ported. It is a UI mockup, so shipping it would hand users a window that does nothing. |
+| `exgui_lazarus/` | same, ported | Builds with `lazbuild`, and is now usable rather than a mockup: it queries servers, fills the server, player and rules views, and remembers the nickname and the favourites list. Only 2 of the Delphi project's 8 forms were ported, so Remote Console, Server Properties, Settings and Help are still empty handlers. Not a CI target, `lazbuild` is not on the runners. |
 | `launch3/` | `samp_debug.exe` | MFC. Builds on a GitHub runner, fails under msvc-wine which ships no MFC libraries. Already wired up as optional. |
 | `testbot/` | `bot.exe` | A development bot. Its `.vcproj` references `..\raknet`, a path from the original tree, and pulls in a much larger RakNet set than `sdk/raknet` provides. |
 | `quicklauncher/` | `quick_launcher.exe` | An AutoIt `.au3` script, needs Aut2Exe. |
@@ -161,6 +161,27 @@ MSBuild under wine takes roughly ten minutes for the client, so run it detached.
 `launch3` does not build this way. It is MFC and msvc-wine does not ship the MFC
 libraries, so `samp_debug.exe` is skipped. Everything downstream treats it as
 optional.
+
+## Server browser, cross compiling on linux
+
+`exgui_lazarus` produces `samp.exe`. A linux `lazbuild` cross compiling to win32
+is not enough here, the project pulls in the win32 LCL widgetset, so use a
+**windows** Lazarus running under wine in its own prefix:
+
+```sh
+WINEPREFIX=~/.wine-lazarus wine ~/.wine-lazarus/drive_c/lazarus/lazbuild.exe \
+    'Z:\path\to\SAMPC\exgui_lazarus\samp.lpi'
+```
+
+The `.lpi` path has to be a windows path, and the output lands next to it as
+`exgui_lazarus/samp.exe`. `dist/package-client.sh` reads
+`exgui_lazarus/Release/samp.exe`, so copy it over before packaging.
+
+Two Pascal traps worth remembering, both cost a build cycle:
+
+* identifiers are case insensitive, so `var pHostEnt: PHostEnt` declares a
+  variable that shadows its own type and fails with "Error in type definition"
+* a local named `Tag` inside a `TfmMain` method collides with `TComponent.Tag`
 
 ## What a user still needs at runtime
 
