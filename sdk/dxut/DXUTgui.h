@@ -193,6 +193,7 @@ public:
     void SetCaptionHeight( int nHeight ) { m_nCaptionHeight = nHeight; }
     void SetCaptionText( const TCHAR *pwszText ) { strcpy_s(m_wszCaption,pwszText); }
     TCHAR* GetCaptionText() { return m_wszCaption; }
+    CDXUTElement* GetCaptionElement() { return &m_CapElement; }
     void GetLocation( POINT &Pt ) const { Pt.x = m_x; Pt.y = m_y; }
     void SetLocation( int x, int y ) { m_x = x; m_y = y; }
     void SetSize( int width, int height ) { m_width = width; m_height = height;  }

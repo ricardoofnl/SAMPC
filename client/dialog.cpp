@@ -10,8 +10,10 @@ CDialog::CDialog(IDirect3DDevice9* pDevice)
 	m_iPosY = 0;
 	m_iWidth = 600;
 	m_iHeight = 300;
-	m_iButtonWidth = 100;
-	m_iButtonHeight = 30;
+	// measured off the original r5 password dialog, 96x26 buttons over a body
+	// that never goes under 230 wide, with a fixed 40 pixel edit control
+	m_iButtonWidth = DIALOG_BUTTON_WIDTH;
+	m_iButtonHeight = DIALOG_BUTTON_HEIGHT;
 	m_pDialog = NULL;
 	m_pListBox = NULL;
 	m_pEditBox = NULL;
@@ -33,7 +35,6 @@ void CDialog::ResetDialogControls()
 	m_pDialog->SetSize(600, 300);
 	m_pDialog->EnableMouseInput(true);
 	m_pDialog->EnableKeyboardInput(true);
-	m_pDialog->SetBackgroundColors(D3DCOLOR_ARGB(220, 5, 5, 5));
 	m_pDialog->SetVisible(false);
 
 	m_pListBox = new CDXUTListBox(m_pDialog);
@@ -41,7 +42,6 @@ void CDialog::ResetDialogControls()
 	m_pListBox->SetLocation(10,10);
 	m_pListBox->SetSize(m_iWidth, m_iHeight - 100);
 	m_pListBox->OnInit();
-	m_pListBox->GetElement(0)->TextureColor.Init(D3DCOLOR_ARGB(200, 255, 255, 255));
 	m_pListBox->m_nColumns = 0;
 	m_pListBox->SetEnabled(false);
 	m_pListBox->SetVisible(false);
@@ -56,13 +56,82 @@ void CDialog::ResetDialogControls()
 		CDXUTIMEEditBox::StaticOnCreateDevice();
 	}
 
-	m_pEditBox->GetElement(0)->TextureColor.Init(D3DCOLOR_ARGB(240, 5, 5, 5));
-	m_pEditBox->SetTextColor(D3DCOLOR_ARGB(255, 255, 255, 255));
-	m_pEditBox->SetCaretColor(D3DCOLOR_ARGB(255, 150, 150, 150));
-	m_pEditBox->SetSelectedBackColor(D3DCOLOR_ARGB(255, 185, 34, 40));
-	m_pEditBox->SetSelectedTextColor(D3DCOLOR_ARGB(255, 10, 10, 15));
 	m_pEditBox->SetEnabled(false);
 	m_pEditBox->SetVisible(false);
+
+	StyleControls();
+}
+
+//----------------------------------------------------
+
+// the dxut skin texture is greyscale, so tinting an element per state is enough
+// to pull the whole control onto the dark panel palette
+static void TintElement(CDXUTElement* pElement, D3DCOLOR normal,
+	D3DCOLOR mouseover, D3DCOLOR pressed, D3DCOLOR text)
+{
+	if (!pElement) return;
+
+	pElement->TextureColor.States[DXUT_STATE_NORMAL] = normal;
+	pElement->TextureColor.States[DXUT_STATE_DISABLED] = normal;
+	pElement->TextureColor.States[DXUT_STATE_HIDDEN] = 0;
+	pElement->TextureColor.States[DXUT_STATE_FOCUS] = mouseover;
+	pElement->TextureColor.States[DXUT_STATE_MOUSEOVER] = mouseover;
+	pElement->TextureColor.States[DXUT_STATE_PRESSED] = pressed;
+
+	for (int i = 0; i < MAX_CONTROL_STATES; i++)
+		pElement->FontColor.States[i] = text;
+
+	pElement->TextureColor.Blend(DXUT_STATE_NORMAL, 10.0f);
+	pElement->FontColor.Blend(DXUT_STATE_NORMAL, 10.0f);
+}
+
+//----------------------------------------------------
+
+void CDialog::StyleControls()
+{
+	if (!m_pDialog) return;
+
+	m_pDialog->SetBackgroundColors(DLG_COL_PANEL);
+
+	TintElement(m_pDialog->GetCaptionElement(),
+		DLG_COL_HEADER, DLG_COL_HEADER, DLG_COL_HEADER, DLG_COL_TEXT);
+
+	// element 0 is the button face, element 1 the fill layer that lights up
+	for (int i = IDC_DLGBUTTON1; i <= IDC_DLGBUTTON2; i++)
+	{
+		CDXUTButton* pButton = m_pDialog->GetButton(i);
+		if (!pButton) continue;
+
+		TintElement(pButton->GetElement(0),
+			DLG_COL_HEADER, DLG_COL_BORDER, DLG_COL_ACCENT, DLG_COL_TEXT);
+		TintElement(pButton->GetElement(1),
+			D3DCOLOR_ARGB(0, 0, 0, 0), DLG_COL_ACCENT, DLG_COL_ACCENT, DLG_COL_TEXT);
+	}
+
+	if (m_pListBox)
+	{
+		// 0 is the list surface, 1 the selection bar
+		TintElement(m_pListBox->GetElement(0),
+			DLG_COL_PANEL, DLG_COL_PANEL, DLG_COL_PANEL, DLG_COL_TEXT);
+		TintElement(m_pListBox->GetElement(1),
+			DLG_COL_ACCENT, DLG_COL_ACCENT, DLG_COL_ACCENT, DLG_COL_TEXT);
+	}
+
+	if (m_pEditBox)
+	{
+		// the edit box is a nine slice, 0 is the middle and 1..8 the frame
+		TintElement(m_pEditBox->GetElement(0),
+			DLG_COL_PANEL, DLG_COL_PANEL, DLG_COL_PANEL, DLG_COL_TEXT);
+
+		for (int i = 1; i <= 8; i++)
+			TintElement(m_pEditBox->GetElement(i),
+				DLG_COL_BORDER, DLG_COL_BORDER, DLG_COL_BORDER, DLG_COL_TEXT);
+
+		m_pEditBox->SetTextColor(DLG_COL_TEXT);
+		m_pEditBox->SetCaretColor(DLG_COL_TEXT);
+		m_pEditBox->SetSelectedBackColor(DLG_COL_ACCENT);
+		m_pEditBox->SetSelectedTextColor(DLG_COL_TEXT);
+	}
 }
 
 bool CDialog::MsgProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
@@ -125,7 +194,7 @@ void CDialog::Draw()
 		rect.top += DIALOG_CONTENT_MARGIN;
 
 		pDefaultFont->RenderSmallerText(NULL, m_szContent, rect,
-			DT_NOCLIP | DT_EXPANDTABS, 0xFFA9C4E4, true);
+			DT_NOCLIP | DT_EXPANDTABS, DLG_COL_CONTENT, true);
 	}
 }
 
@@ -335,7 +404,7 @@ void CDialog::Show(int iID, int iStyle, char* szCaption,
 		m_pListBox->SetVisible(false);
 		m_pListBox->SetEnabled(false);
 
-		int iEditHeight = (int)(m_pDialog->GetFont(1)->nHeight * 1.6f + 14.0f);
+		int iEditHeight = DIALOG_EDIT_HEIGHT;
 		int iContentTop = DIALOG_CONTENT_MARGIN + m_ContentSize.cy;
 
 		switch (m_iDialogStyle)
@@ -343,8 +412,7 @@ void CDialog::Show(int iID, int iStyle, char* szCaption,
 		case DIALOG_STYLE_MSGBOX:
 		{
 			m_iWidth = m_ContentSize.cx + 40;
-			if (m_iWidth < (2 * m_iButtonWidth) + 30)
-				m_iWidth = (2 * m_iButtonWidth) + 30;
+			if (m_iWidth < DIALOG_MIN_WIDTH) m_iWidth = DIALOG_MIN_WIDTH;
 
 			m_iHeight = DIALOG_CONTENT_MARGIN + m_ContentSize.cy + m_iButtonHeight + 30;
 			break;
@@ -353,8 +421,7 @@ void CDialog::Show(int iID, int iStyle, char* szCaption,
 		case DIALOG_STYLE_PASSWORD:
 		{
 			m_iWidth = m_ContentSize.cx + 40;
-			if (m_iWidth < (2 * m_iButtonWidth) + 30)
-				m_iWidth = (2 * m_iButtonWidth) + 30;
+			if (m_iWidth < DIALOG_MIN_WIDTH) m_iWidth = DIALOG_MIN_WIDTH;
 
 			m_iHeight = DIALOG_CONTENT_MARGIN + m_ContentSize.cy + iEditHeight +
 						m_iButtonHeight + 30;
@@ -376,8 +443,7 @@ void CDialog::Show(int iID, int iStyle, char* szCaption,
 			m_iWidth = listSize.cx + 40;
 			if (m_iWidth < 400) m_iWidth = 400;
 			if (m_iWidth > 800) m_iWidth = 800;
-			if (m_iWidth < (2 * m_iButtonWidth) + 30)
-				m_iWidth = (2 * m_iButtonWidth) + 30;
+			if (m_iWidth < DIALOG_MIN_WIDTH) m_iWidth = DIALOG_MIN_WIDTH;
 
 			int iListHeight = listSize.cy + (2 * (int)GetFontHeight());
 			if (iListHeight < 200) iListHeight = 200;

@@ -9,6 +9,21 @@
 // right under it and only need a small margin
 #define DIALOG_CONTENT_MARGIN 8
 
+// sizes measured off the original 0.3.7-R5 dialog
+#define DIALOG_BUTTON_WIDTH  96
+#define DIALOG_BUTTON_HEIGHT 26
+#define DIALOG_EDIT_HEIGHT   40
+#define DIALOG_MIN_WIDTH     230
+
+// dark translucent panel palette. the dxut skin is greyscale and these modulate
+// it, so the frame, caption, buttons and list all end up on one surface
+#define DLG_COL_PANEL	D3DCOLOR_ARGB(235,  10,  12,  16)
+#define DLG_COL_HEADER	D3DCOLOR_ARGB(240,  30,  35,  44)
+#define DLG_COL_BORDER	D3DCOLOR_ARGB(255,  72,  84, 100)
+#define DLG_COL_ACCENT	D3DCOLOR_ARGB(240,  52,  96, 148)
+#define DLG_COL_TEXT	D3DCOLOR_ARGB(255, 226, 232, 240)
+#define DLG_COL_CONTENT	0xFFA9C4E4
+
 #define DIALOG_STYLE_MSGBOX 0
 #define DIALOG_STYLE_INPUT 1
 #define DIALOG_STYLE_LIST 2
@@ -41,6 +56,7 @@ public:
 	CDialog(IDirect3DDevice9* pDevice);
 
 	void ResetDialogControls();
+	void StyleControls();
 	bool MsgProc(UINT uMsg, WPARAM wParam, LPARAM lParam);
 	bool HandleInput(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
 	bool IsCandidateActive();
